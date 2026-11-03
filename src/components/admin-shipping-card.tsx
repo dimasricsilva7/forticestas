@@ -11,9 +11,11 @@ type Status = {
 
 export default function AdminShippingCard() {
   const [status,setStatus] = useState<Status | null>(null);
+  const [result,setResult] = useState<string | null>(null);
   const [loading,setLoading] = useState(true);
 
   useEffect(() => {
+    setResult(new URLSearchParams(window.location.search).get("shipping"));
     let active = true;
     fetch("/api/admin/shipping/status",{cache:"no-store"})
       .then(response=>response.ok?response.json():Promise.reject())
@@ -23,8 +25,6 @@ export default function AdminShippingCard() {
     return ()=>{active=false;};
   },[]);
 
-  const search = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
-  const result = search?.get("shipping");
   const messages:Record<string,string> = {
     connected:"Conta do Melhor Envio conectada com sucesso.",
     "missing-credentials":"Configure Client ID, Client Secret e Callback na Vercel antes de conectar.",
