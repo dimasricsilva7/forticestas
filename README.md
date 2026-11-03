@@ -43,11 +43,14 @@ Abra http://localhost:3000.
 As rotas administrativas validam sessão Supabase Auth e associação à tabela `admin_users`. O acesso de leitura do usuário autenticado à própria linha é limitado por RLS. Operações administrativas usam service-role exclusivamente no servidor.
 
 ## Pagamento e frete
-- O adaptador BravoPay está em `src/lib/integrations/bravopay.ts`. É um ponto de integração, não uma conexão ativa.
-- O adaptador de frete está em `src/lib/integrations/shipping.ts`. O provedor ainda precisa ser escolhido.
-- Não habilite cobrança até implementar criação de cobrança, validação criptográfica do webhook e idempotência.
-- O status `paid` só deve ser atribuído após confirmação autenticada do provedor.
-- O valor e a disponibilidade do frete precisam vir de cotação real antes de criar o pedido.
+- O adaptador BravoPay em `src/lib/integrations/bravopay.ts` já implementa criação de cobrança PIX na API v1 e validação HMAC-SHA256 do webhook.
+- O endpoint de recebimento é `POST /api/webhooks/bravopay`. Cadastre essa URL no Dashboard BravoPay > Integrações e copie o segredo `whsec_...` para `BRAVOPAY_WEBHOOK_SECRET`.
+- Configure `BRAVOPAY_API_KEY` com a chave de cobranças `bp_live_...`. Ambas são variáveis privadas de servidor, nunca prefixadas com `NEXT_PUBLIC_`.
+- A criação de cobrança usa `Idempotency-Key`; os eventos são deduplicados pelo ID estável do webhook. O pedido só muda para pago após evento assinado `transaction.paid`, conferência do ID da transação e conferência do valor total.
+- Consulte a [documentação oficial BravoPay](https://bravopay.club/docs) para conferir os dados da conta e cadastrar o webhook.
+- O adaptador de frete está em `src/lib/integrations/shipping.ts`. O provedor nacional ainda precisa ser escolhido e configurado.
+- Não habilite vendas até integrar uma cotação real de frete e conectar o endpoint de checkout à transportadora. Não aceite preço ou status de frete enviado pelo navegador.
+- O status `paid` nunca deve ser atribuído por ação do cliente ou pela página de retorno do checkout.
 
 ## Importante
 O projeto está em etapa de MVP. O catálogo e o painel dependem da configuração do Supabase. Ainda não está pronto para receber pagamentos ou expedir pedidos. Não publique credenciais em commits, tickets ou mensagens.
