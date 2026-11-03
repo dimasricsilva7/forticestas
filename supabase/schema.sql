@@ -111,3 +111,63 @@ alter table public.quiz_responses enable row level security;
 
 -- No public write policies are created intentionally.
 -- Add narrowly scoped policies after the authentication and server API model is implemented.
+
+
+-- Administrator allow-list. Add the first user only after creating the user in Supabase Auth.
+create table if not exists public.admin_users (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+alter table public.admin_users enable row level security;
+
+drop policy if exists "admins can read own admin record" on public.admin_users;
+create policy "admins can read own admin record"
+  on public.admin_users for select
+  to authenticated
+  using (user_id = auth.uid());
+
+-- Public storefront reads only records explicitly published as active.
+drop policy if exists "public can read active products" on public.products;
+create policy "public can read active products"
+  on public.products for select
+  to anon, authenticated
+  using (active = true);
+
+drop policy if exists "public can read active baskets" on public.baskets;
+create policy "public can read active baskets"
+  on public.baskets for select
+  to anon, authenticated
+  using (active = true);
+
+drop policy if exists "public can read items of active baskets" on public.basket_items;
+create policy "public can read items of active baskets"
+  on public.basket_items for select
+  to anon, authenticated
+  using (
+    exists (
+      select 1 from public.baskets b
+      where b.id = basket_id and b.active = true
+    )
+  );
+
+drop policy if exists "public can read products used in active baskets" on public.products;
+create policy "public can read products used in active baskets"
+  on public.products for select
+  to anon, authenticated
+  using (
+    active = true
+    or exists (
+      select 1 from public.basket_items bi
+      join public.baskets b on b.id = bi.basket_id
+      where bi.product_id = products.id and b.active = true
+    )
+  );
+
+drop policy if exists "public can read active quiz questions" on public.quiz_questions;
+create policy "public can read active quiz questions"
+  on public.quiz_questions for select
+  to anon, authenticated
+  using (active = true);
+
+-- The service-role key bypasses RLS and is used only by server routes.
+-- Do not create public INSERT/UPDATE/DELETE policies for orders or admin data.
