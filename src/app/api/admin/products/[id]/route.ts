@@ -11,6 +11,7 @@ const productSchema = z.object({
   sku: z.string().trim().max(80).nullable().optional(),
   price_cents: z.number().int().min(0),
   stock_quantity: z.number().int().min(0),
+  weight_grams: z.number().int().min(1).max(100000),
   image_url: z.string().url().nullable().optional(),
   active: z.boolean().default(true),
 });
