@@ -102,13 +102,20 @@ export async function POST(request: NextRequest) {
       const product = Array.isArray(item.products) ? item.products[0] : item.products;
       if (!product || !product.active) return errorResponse("Um dos produtos desta cesta não está disponível.", 409);
       if (product.stock_quantity < item.quantity) return errorResponse(`Estoque insuficiente para ${product.name}.`, 409);
-      if (!Number.isInteger(product.weight_grams) || product.weight_grams <= 0) {
-        return errorResponse(`Cadastre o peso de envio do produto ${product.name} antes de habilitar o checkout.`, 422);
+      if (
+        !Number.isInteger(product.weight_grams) || product.weight_grams <= 0 ||
+        product.width_cm <= 0 || product.height_cm <= 0 || product.length_cm <= 0
+      ) {
+        return errorResponse(`Cadastre peso, largura, altura e comprimento de ${product.name} antes de habilitar o checkout.`, 422);
       }
       shippingItems.push({
         sku: product.sku || product.id,
         quantity: item.quantity,
         weightGrams: product.weight_grams,
+        widthCm: Number(product.width_cm),
+        heightCm: Number(product.height_cm),
+        lengthCm: Number(product.length_cm),
+        valueCents: Number(product.price_cents),
       });
     }
 
