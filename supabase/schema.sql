@@ -193,3 +193,22 @@ values
   ('basket', 'Qual tipo de cesta prefere?', 'Você pode refinar a escolha antes de ver a recomendação.',
    '[{"value":"Tradicional","description":"Alimentos básicos para o dia a dia"},{"value":"Econômica","description":"Foco nos itens essenciais"},{"value":"Completa","description":"Mais variedade de produtos"}]'::jsonb, false, true, 6, true)
 on conflict (question_key) do nothing;
+
+
+-- BravoPay event delivery log: event_id is stable across provider retries.
+create table if not exists public.payment_webhook_events (
+  event_id text primary key,
+  event_type text not null,
+  payload jsonb not null,
+  received_at timestamptz not null default now(),
+  processed_at timestamptz,
+  processing_error text
+);
+alter table public.payment_webhook_events enable row level security;
+
+-- Distinguish a chargeback from a voluntary refund in the order ledger.
+alter table public.orders
+  drop constraint if exists orders_payment_status_check;
+alter table public.orders
+  add constraint orders_payment_status_check
+  check (payment_status in ('pending','paid','failed','refunded','chargeback','cancelled'));
