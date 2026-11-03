@@ -212,3 +212,22 @@ alter table public.orders
 alter table public.orders
   add constraint orders_payment_status_check
   check (payment_status in ('pending','paid','failed','refunded','chargeback','cancelled'));
+
+
+-- Checkout and freight fields required by the server-side checkout.
+alter table public.products
+  add column if not exists weight_grams integer not null default 0
+  check (weight_grams >= 0);
+
+alter table public.orders
+  add column if not exists shipping_service text,
+  add column if not exists checkout_idempotency_key text,
+  add column if not exists payment_payload jsonb;
+
+create unique index if not exists orders_checkout_idempotency_key_idx
+  on public.orders(checkout_idempotency_key)
+  where checkout_idempotency_key is not null;
+
+-- Webhook receipts are private to server-side processing.
+create index if not exists payment_webhook_events_received_at_idx
+  on public.payment_webhook_events(received_at desc);
