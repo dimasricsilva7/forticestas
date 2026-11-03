@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -13,7 +13,7 @@ type QuizStep = {
   multi?: boolean;
 };
 
-const steps: QuizStep[] = [
+const fallbackSteps: QuizStep[] = [
   {
     key: "household",
     title: "Quantas pessoas vivem na sua casa?",
@@ -90,10 +90,36 @@ export default function QuizPage() {
   const [cep, setCep] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const current = steps[Math.min(step, steps.length - 1)];
+  const [quizSteps, setQuizSteps] = useState<QuizStep[]>(fallbackSteps);
+  useEffect(() => {
+    let active = true;
+    fetch("/api/quiz-config", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : Promise.reject())
+      .then((data: { questions?: Array<{ question_key: string; title: string; subtitle: string; options: QuizOption[]; multi?: boolean }> }) => {
+        const configured = (data.questions || [])
+          .filter((question) => question.title && Array.isArray(question.options) && question.options.length >= 2)
+          .map((question) => ({
+            key: question.question_key,
+            title: question.title,
+            subtitle: question.subtitle || "",
+            options: question.options,
+            multi: Boolean(question.multi),
+          }));
+        if (active && configured.length) {
+          setQuizSteps(configured);
+          setStep(0);
+          setAnswers({});
+        }
+      })
+      .catch(() => {
+        // Keep the built-in fallback questions if the database is not configured.
+      });
+    return () => { active = false; };
+  }, []);
+  const current = quizSteps[Math.min(step, quizSteps.length - 1)];
   const progress = useMemo(
-    () => Math.round(((step + 1) / (steps.length + 1)) * 100),
-    [step],
+    () => Math.round(((step + 1) / (quizSteps.length + 1)) * 100),
+    [step, quizSteps.length],
   );
 
   function choose(value: string) {
@@ -161,7 +187,7 @@ export default function QuizPage() {
             <span className="brand-mark">F</span> FortiCestas
           </Link>
           <span className="text-xs text-gray-500">
-            Etapa {Math.min(step + 1, steps.length + 1)} de {steps.length + 1}
+            Etapa {Math.min(step + 1, quizSteps.length + 1)} de {quizSteps.length + 1}
           </span>
         </header>
 
@@ -169,7 +195,7 @@ export default function QuizPage() {
           <div className="progress-fill" style={{ width: `${progress}%` }} />
         </div>
 
-        {step < steps.length ? (
+        {step < quizSteps.length ? (
           <>
             <span className="quiz-kicker">Vamos encontrar sua cesta</span>
             <h1>{current.title}</h1>
