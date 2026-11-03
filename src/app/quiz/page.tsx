@@ -11,6 +11,7 @@ type QuizStep = {
   subtitle: string;
   options: QuizOption[];
   multi?: boolean;
+  required?: boolean;
 };
 
 const fallbackSteps: QuizStep[] = [
@@ -95,7 +96,7 @@ export default function QuizPage() {
     let active = true;
     fetch("/api/quiz-config", { cache: "no-store" })
       .then((response) => response.ok ? response.json() : Promise.reject())
-      .then((data: { questions?: Array<{ question_key: string; title: string; subtitle: string; options: QuizOption[]; multi?: boolean }> }) => {
+      .then((data: { questions?: Array<{ question_key: string; title: string; subtitle: string; options: QuizOption[]; multi?: boolean; required?: boolean }> }) => {
         const configured = (data.questions || [])
           .filter((question) => question.title && Array.isArray(question.options) && question.options.length >= 2)
           .map((question) => ({
@@ -104,6 +105,7 @@ export default function QuizPage() {
             subtitle: question.subtitle || "",
             options: question.options,
             multi: Boolean(question.multi),
+            required: question.required !== false,
           }));
         if (active && configured.length) {
           setQuizSteps(configured);
@@ -140,7 +142,7 @@ export default function QuizPage() {
 
   function next() {
     const selected = answers[current.key];
-    if (!selected || (Array.isArray(selected) && selected.length === 0)) {
+    if (current.required !== false && (!selected || (Array.isArray(selected) && selected.length === 0))) {
       setError("Selecione uma opção para continuar.");
       return;
     }
