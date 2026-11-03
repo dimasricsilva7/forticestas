@@ -87,7 +87,7 @@ export default function AdminDashboard() {
     const payload = {
       name:productForm.name, slug:productForm.slug || toSlug(productForm.name),
       description:productForm.description, sku:productForm.sku || null,
-      price_cents:Math.round(price*100), stock_quantity:Number(productForm.stock),
+      price_cents:Math.round(price*100), stock_quantity:Number(productForm.stock), weight_grams:Number(productForm.weight_grams),
       image_url:productForm.image_url || null, active:productForm.active
     };
     try {
