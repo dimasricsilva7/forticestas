@@ -18,14 +18,17 @@ export type PixChargeResult = {
 };
 
 export async function createBravoPayPixCharge(
-  _input: PixChargeInput,
+  input: PixChargeInput,
 ): Promise<PixChargeResult> {
+  void input;
   throw new Error("Integração BravoPay ainda não configurada.");
 }
 
 export async function verifyBravoPayWebhook(
-  _rawBody: string,
-  _signature: string,
+  rawBody: string,
+  signature: string,
 ): Promise<boolean> {
+  void rawBody;
+  void signature;
   throw new Error("Validação do webhook BravoPay ainda não implementada.");
 }
