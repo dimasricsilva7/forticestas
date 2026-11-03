@@ -1,8 +1,5 @@
-/**
- * Adaptador de frete.
- * Contrato independente de provedor: todos os dados são consultados no servidor.
- * O provedor precisa ser escolhido e autenticado antes de habilitar checkout real.
- */
+import "server-only";
+
 export type ShippingItem = {
   sku: string;
   quantity: number;
@@ -25,9 +22,11 @@ export type ShippingQuote = {
   quoteReference?: string;
 };
 
-export async function quoteShipping(
-  input: ShippingQuoteInput,
-): Promise<ShippingQuote[]> {
-  void input;
-  throw new Error("Provedor de frete ainda não configurado.");
+export async function quoteShipping(input: ShippingQuoteInput): Promise<ShippingQuote[]> {
+  const provider = process.env.SHIPPING_PROVIDER || "melhor_envio";
+  if (provider === "melhor_envio") {
+    const { quoteMelhorEnvio } = await import("@/lib/integrations/melhor-envio");
+    return quoteMelhorEnvio(input);
+  }
+  throw new Error("Provedor de frete não configurado.");
 }

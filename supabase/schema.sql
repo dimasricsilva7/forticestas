@@ -238,3 +238,16 @@ alter table public.products
   add column if not exists width_cm numeric(8,2) not null default 0 check (width_cm >= 0),
   add column if not exists height_cm numeric(8,2) not null default 0 check (height_cm >= 0),
   add column if not exists length_cm numeric(8,2) not null default 0 check (length_cm >= 0);
+
+
+-- OAuth connection credentials are encrypted at application level.
+-- This table has no public or authenticated policies; only server service-role code accesses it.
+create table if not exists public.shipping_connections (
+  provider text primary key check (provider in ('melhor_envio')),
+  access_token_encrypted text not null,
+  refresh_token_encrypted text not null,
+  expires_at timestamptz not null,
+  scopes text[] not null default '{}',
+  updated_at timestamptz not null default now()
+);
+alter table public.shipping_connections enable row level security;

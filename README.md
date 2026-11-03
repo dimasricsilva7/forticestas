@@ -51,8 +51,14 @@ As rotas administrativas validam sessão Supabase Auth e associação à tabela 
 - Configure `BRAVOPAY_API_KEY` com a chave de cobranças `bp_live_...`. Ambas são variáveis privadas de servidor, nunca prefixadas com `NEXT_PUBLIC_`.
 - Os eventos são deduplicados pelo ID estável. O pedido só muda para pago após webhook assinado `transaction.paid`, conferência do ID da transação e conferência do valor.
 - Consulte a [documentação oficial BravoPay](https://bravopay.club/docs) para ver endpoint, escopos da chave e cadastrar o webhook.
-- O adaptador de frete está em `src/lib/integrations/shipping.ts`. A interface aceita peso, dimensões, quantidade e valor segurado por item. O provedor nacional ainda precisa ser escolhido e implementado. Enquanto isso, o checkout responde com indisponibilidade e não cria cobrança Pix.
-- Para uma loja própria, Melhor Envio é uma opção recomendada para avaliar: a documentação oficial descreve API pública sem mensalidade de integração, cotações de múltiplas transportadoras e OAuth2 com renovação de token. A conta da loja e o aplicativo OAuth precisam ser autorizados antes de ativar o serviço.
+- O adaptador de frete usa Melhor Envio em `src/lib/integrations/melhor-envio.ts`, com OAuth2, renovação automática e tokens armazenados criptografados no banco.
+- Cadastre o aplicativo em Melhor Envio > Integrações > Área Dev. Use o callback exato `https://SEU-DOMINIO/api/admin/shipping/melhor-envio/callback` e solicite apenas o scope `shipping-calculate`.
+- Configure na Vercel: `MELHORENVIO_CLIENT_ID`, `MELHORENVIO_CLIENT_SECRET`, `MELHORENVIO_REDIRECT_URI`, `MELHORENVIO_USER_AGENT_EMAIL`, `MELHORENVIO_TOKEN_ENCRYPTION_KEY`, `SHIPPING_ORIGIN_CEP`, `MELHORENVIO_ENV` e `SHIPPING_PROVIDER=melhor_envio`.
+- Gere a chave de criptografia com `openssl rand -hex 32`. Ela deve permanecer secreta e estável; trocar a chave sem reautorizar a integração impede a leitura dos tokens já armazenados.
+- Defina `MELHORENVIO_ENV=sandbox` para homologar. Depois, crie/configure o aplicativo de produção, ajuste o callback cadastrado e troque para `production` somente após testar a autorização e as cotações.
+- Em seguida, entre em `/admin` e clique em **Conectar Melhor Envio**. A conta autorizada é a conta remetente da loja; o CEP de origem deve ser o endereço real de expedição.
+- O checkout envia medidas em cm, peso em kg e valor segurado unitário por produto ao endpoint de cotação. Usa `custom_price` e `custom_delivery_time` quando retornados pela API. A compra de etiquetas não está habilitada.
+- Consulte a [documentação oficial de autorização](https://docs.melhorenvio.com.br/reference/fluxo-de-autoriza%C3%A7%C3%A3o), [solicitação/renovação de token](https://docs.melhorenvio.com.br/reference/solicitacao-do-token) e [cálculo de fretes](https://docs.melhorenvio.com.br/reference/calculo-de-fretes-por-produtos).
 - Não aceite preço ou status de frete enviado pelo navegador. O serviço, preço e prazo devem vir da API do transportador no servidor.
 - O status `paid` nunca deve ser atribuído por ação do cliente ou pela página de retorno do checkout.
 

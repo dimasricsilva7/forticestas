@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import AdminShippingCard from "@/components/admin-shipping-card";
 
 type Product = {
   id: string; name: string; slug: string; description: string; sku: string | null;
@@ -232,7 +233,8 @@ export default function AdminDashboard() {
           <article className="stat-card"><span>Pedidos recebidos</span><strong>{overview.orders}</strong></article>
           <article className="stat-card"><span>Vendas confirmadas</span><strong>{currency(overview.paidRevenueCents)}</strong><small>{overview.paidOrders} pagamentos confirmados</small></article>
         </div>
-        <div className="detail-panel"><h2>Próximas configurações</h2><p>Cadastre produtos e monte suas cestas. Para receber pagamentos, configure o webhook do BravoPay e o provedor de frete. Nenhum pedido será marcado como pago sem confirmação autenticada.</p></div>
+        <div className="detail-panel"><h2>Próximas configurações</h2><p>Cadastre produtos e monte suas cestas. Para receber pagamentos, configure o webhook do BravoPay e conecte o serviço de frete. Nenhum pedido será marcado como pago sem confirmação autenticada.</p></div>
+        <AdminShippingCard />
       </>}
 
       {!loading && tab==="products" && <div className="admin-columns">
