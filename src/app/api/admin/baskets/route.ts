@@ -31,6 +31,15 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: "Confira os campos e os itens da cesta." }, { status: 400 });
 
   const { items, ...basketData } = parsed.data;
+  if (items.length) {
+    const ids = [...new Set(items.map(item => item.product_id))];
+    if (ids.length !== items.length) return NextResponse.json({ error: "Um mesmo produto não pode ser repetido na composição da cesta." }, { status: 400 });
+    const { data: linkedProducts, error: productsError } = await context.db.from("products")
+      .select("id, active").in("id", ids);
+    if (productsError || !linkedProducts || linkedProducts.length !== ids.length || linkedProducts.some(product => !product.active)) {
+      return NextResponse.json({ error: "A composição só pode incluir produtos existentes e ativos." }, { status: 400 });
+    }
+  }
   const { data: basket, error } = await context.db.from("baskets").insert(basketData).select("*").single();
   if (error || !basket) return NextResponse.json({ error: error?.code === "23505" ? "Já existe uma cesta com este slug." : "Não foi possível salvar a cesta." }, { status: 400 });
 
