@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 type Product = {
   id: string; name: string; slug: string; description: string; sku: string | null;
-  price_cents: number; stock_quantity: number; image_url: string | null; active: boolean;
+  price_cents: number; stock_quantity: number; weight_grams: number; image_url: string | null; active: boolean;
 };
 type BasketItem = { product_id: string; quantity: number };
 type Basket = {
@@ -17,7 +17,7 @@ type Order = {
 };
 type ProductForm = {
   id?: string; name: string; slug: string; description: string; sku: string;
-  price: string; stock: string; image_url: string; active: boolean;
+  price: string; stock: string; weight_grams: string; image_url: string; active: boolean;
 };
 type QuizQuestion = {
   id: string; question_key: string; title: string; subtitle: string;
@@ -26,7 +26,7 @@ type QuizQuestion = {
 };
 
 const emptyProduct: ProductForm = {
-  name:"", slug:"", description:"", sku:"", price:"", stock:"0", image_url:"", active:true
+  name:"", slug:"", description:"", sku:"", price:"", stock:"0", weight_grams:"500", image_url:"", active:true
 };
 
 function currency(cents: number) {
@@ -102,7 +102,7 @@ export default function AdminDashboard() {
     setProductForm({
       id:product.id,name:product.name,slug:product.slug,description:product.description || "",
       sku:product.sku || "",price:(product.price_cents/100).toFixed(2).replace(".",","),
-      stock:String(product.stock_quantity),image_url:product.image_url || "",active:product.active
+      stock:String(product.stock_quantity),weight_grams:String(product.weight_grams || 0),image_url:product.image_url || "",active:product.active
     });
     setTab("products"); window.scrollTo({top:0,behavior:"smooth"});
   }
@@ -241,7 +241,7 @@ export default function AdminDashboard() {
           <label>Nome<input required value={productForm.name} onChange={e=>setProductForm({...productForm,name:e.target.value,slug:productForm.id?productForm.slug:toSlug(e.target.value)})}/></label>
           <label>Slug<input required value={productForm.slug} onChange={e=>setProductForm({...productForm,slug:toSlug(e.target.value)})}/></label>
           <label>Descrição<textarea rows={3} value={productForm.description} onChange={e=>setProductForm({...productForm,description:e.target.value})}/></label>
-          <div className="form-row"><label>Preço (R$)<input required inputMode="decimal" placeholder="0,00" value={productForm.price} onChange={e=>setProductForm({...productForm,price:e.target.value})}/></label><label>Estoque<input required type="number" min="0" value={productForm.stock} onChange={e=>setProductForm({...productForm,stock:e.target.value})}/></label></div>
+          <div className="form-row"><label>Preço (R$)<input required inputMode="decimal" placeholder="0,00" value={productForm.price} onChange={e=>setProductForm({...productForm,price:e.target.value})}/></label><label>Estoque<input required type="number" min="0" value={productForm.stock} onChange={e=>setProductForm({...productForm,stock:e.target.value})}/></label></div>\n          <label>Peso unitário para frete (gramas)<input required type="number" min="1" max="100000" value={productForm.weight_grams} onChange={e=>setProductForm({...productForm,weight_grams:e.target.value})}/></label>
           <div className="form-row"><label>SKU<input value={productForm.sku} onChange={e=>setProductForm({...productForm,sku:e.target.value})}/></label><label>URL da imagem<input type="url" value={productForm.image_url} onChange={e=>setProductForm({...productForm,image_url:e.target.value})}/></label></div>
           <label className="inline-check"><input type="checkbox" checked={productForm.active} onChange={e=>setProductForm({...productForm,active:e.target.checked})}/> Produto ativo no catálogo</label>
           <div className="form-actions"><button className="primary-btn" type="submit">Salvar produto</button>{productForm.id&&<button className="secondary-btn" type="button" onClick={()=>setProductForm(emptyProduct)}>Cancelar edição</button>}</div>
