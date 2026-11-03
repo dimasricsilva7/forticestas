@@ -20,7 +20,8 @@ export type ShippingQuote = {
 };
 
 export async function quoteShipping(
-  _input: ShippingQuoteInput,
+  input: ShippingQuoteInput,
 ): Promise<ShippingQuote[]> {
+  void input;
   throw new Error("Provedor de frete ainda não configurado.");
 }
