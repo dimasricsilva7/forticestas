@@ -1,45 +1,53 @@
 # FortiCestas
 
-Loja de cestas básicas com experiência de recomendação por quiz, catálogo administrável e checkout Pix.
+Loja de cestas básicas com recomendação por quiz, catálogo administrável e estrutura para checkout Pix.
 
 ## Stack
-
-- Next.js 15 + React 19 + TypeScript
+- Next.js 15.5 + React 19 + TypeScript
 - Tailwind CSS 4
-- Supabase (Postgres, Auth e Storage) — preparado, ainda não conectado
-- Vercel — destino de deploy
+- Supabase Auth + Postgres
+- Vercel com deploy automático conectado ao GitHub
 
 ## Rodar localmente
-
 ```bash
 npm install
 cp .env.example .env.local
 npm run dev
 ```
-
 Abra http://localhost:3000.
 
-## Rotas iniciais
-
+## Rotas
 - `/` — página inicial
-- `/quiz` — questionário de perfil e consulta de CEP via ViaCEP
-- `/resultado` — resumo da recomendação (não simula estoque nem frete real)
-- `/admin` — esqueleto visual do painel administrativo (não protegido; demonstração apenas)
+- `/quiz` — questionário de perfil com consulta de CEP via ViaCEP
+- `/resultado` — resumo inicial das respostas
+- `/cestas` — catálogo de cestas ativas no Supabase
+- `/cestas/[slug]` — composição e preço de uma cesta
+- `/admin/login` — acesso administrativo
+- `/admin` — painel protegido para produtos, cestas, pedidos e métricas
 
-## Configurações obrigatórias antes de produção
+## Supabase — configuração obrigatória
+1. Crie um projeto Supabase.
+2. Em SQL Editor, execute o arquivo `supabase/schema.sql` inteiro.
+3. Em Authentication > Users, crie seu usuário administrador com e-mail e senha.
+4. Copie o UUID desse usuário e execute no SQL Editor:
+   ```sql
+   insert into public.admin_users (user_id)
+   values ('UUID_DO_USUARIO_CRIADO_NO_AUTH');
+   ```
+5. Configure na Vercel (Settings > Environment Variables) e em `.env.local`:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY` (somente servidor; nunca use prefixo NEXT_PUBLIC_)
+6. Faça redeploy depois de cadastrar as variáveis.
 
-1. Criar projeto Supabase e preencher as variáveis do `.env.example`.
-2. Aplicar o schema em `supabase/schema.sql`.
-3. Implementar autenticação e autorização do painel; nunca publicar o painel administrativo sem proteção.
-4. Definir provedor de frete e implementar cotação/etiquetas via API.
-5. Integrar BravoPay exclusivamente no servidor, validar assinatura do webhook e só marcar pedido como pago após confirmação autenticada.
-6. Cadastrar produtos, preços, imagens, estoque e composição real das cestas.
-7. Configurar domínio, URL pública, políticas de privacidade, termos e informações comerciais.
+As rotas administrativas validam sessão Supabase Auth e associação à tabela `admin_users`. O acesso de leitura do usuário autenticado à própria linha é limitado por RLS. Operações administrativas usam service-role exclusivamente no servidor.
 
-## Integrações
+## Pagamento e frete
+- O adaptador BravoPay está em `src/lib/integrations/bravopay.ts`. É um ponto de integração, não uma conexão ativa.
+- O adaptador de frete está em `src/lib/integrations/shipping.ts`. O provedor ainda precisa ser escolhido.
+- Não habilite cobrança até implementar criação de cobrança, validação criptográfica do webhook e idempotência.
+- O status `paid` só deve ser atribuído após confirmação autenticada do provedor.
+- O valor e a disponibilidade do frete precisam vir de cotação real antes de criar o pedido.
 
-As credenciais não devem ser versionadas. Use variáveis de ambiente na Vercel. O token de serviço do Supabase e as chaves da BravoPay devem permanecer apenas no servidor. O navegador nunca deve receber segredos.
-
-## Estado do projeto
-
-Este commit disponibiliza a estrutura inicial de interface e organização. Não é uma loja pronta para receber pagamentos: catálogo, administração segura, checkout BravoPay, frete e webhooks ainda precisam ser implementados e testados.
+## Importante
+O projeto está em etapa de MVP. O catálogo e o painel dependem da configuração do Supabase. Ainda não está pronto para receber pagamentos ou expedir pedidos. Não publique credenciais em commits, tickets ou mensagens.
