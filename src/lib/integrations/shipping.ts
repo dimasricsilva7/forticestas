@@ -1,11 +1,16 @@
 /**
- * Adaptador de frete — provedor nacional ainda não selecionado.
- * Implementar cotação e rastreio no servidor após definição do parceiro logístico.
+ * Adaptador de frete.
+ * Contrato independente de provedor: todos os dados são consultados no servidor.
+ * O provedor precisa ser escolhido e autenticado antes de habilitar checkout real.
  */
 export type ShippingItem = {
   sku: string;
   quantity: number;
   weightGrams: number;
+  widthCm: number;
+  heightCm: number;
+  lengthCm: number;
+  valueCents: number;
 };
 
 export type ShippingQuoteInput = {
@@ -17,6 +22,7 @@ export type ShippingQuote = {
   service: string;
   priceCents: number;
   estimatedDays: number;
+  quoteReference?: string;
 };
 
 export async function quoteShipping(
