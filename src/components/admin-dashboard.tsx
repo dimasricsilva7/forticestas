@@ -19,6 +19,11 @@ type ProductForm = {
   id?: string; name: string; slug: string; description: string; sku: string;
   price: string; stock: string; image_url: string; active: boolean;
 };
+type QuizQuestion = {
+  id: string; question_key: string; title: string; subtitle: string;
+  options: { value: string; description: string }[]; multi: boolean;
+  required: boolean; position: number; active: boolean;
+};
 
 const emptyProduct: ProductForm = {
   name:"", slug:"", description:"", sku:"", price:"", stock:"0", image_url:"", active:true
@@ -42,8 +47,9 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export default function AdminDashboard() {
-  const [tab,setTab] = useState<"overview"|"products"|"baskets"|"orders">("overview");
+  const [tab,setTab] = useState<"overview"|"products"|"baskets"|"quiz"|"orders">("overview");
   const [products,setProducts] = useState<Product[]>([]);
+  const [questions,setQuestions] = useState<QuizQuestion[]>([]);
   const [baskets,setBaskets] = useState<Basket[]>([]);
   const [orders,setOrders] = useState<Order[]>([]);
   const [overview,setOverview] = useState({products:0,baskets:0,orders:0,paidRevenueCents:0,paidOrders:0});
@@ -52,17 +58,23 @@ export default function AdminDashboard() {
   const [error,setError] = useState("");
   const [productForm,setProductForm] = useState<ProductForm>(emptyProduct);
   const [basketForm,setBasketForm] = useState({id:"",name:"",slug:"",description:"",price:"",active:true,items:[] as {product_id:string;quantity:number}[]});
+  const [questionForm,setQuestionForm] = useState({
+    id:"", question_key:"", title:"", subtitle:"",
+    optionsText: JSON.stringify([{value:"Opção 1",description:"Descrição da opção"},{value:"Opção 2",description:"Descrição da opção"}],null,2),
+    multi:false, required:true, position:"1", active:true
+  });
 
   const loadAll = useCallback(async () => {
     setLoading(true); setError("");
     try {
-      const [o,p,b,r] = await Promise.all([
+      const [o,p,b,r,q] = await Promise.all([
         request<typeof overview>("/api/admin/overview"),
         request<{products:Product[]}>("/api/admin/products"),
         request<{baskets:Basket[]}>("/api/admin/baskets"),
         request<{orders:Order[]}>("/api/admin/orders"),
+        request<{questions:QuizQuestion[]}>("/api/admin/quiz-questions"),
       ]);
-      setOverview(o); setProducts(p.products); setBaskets(b.baskets); setOrders(r.orders);
+      setOverview(o); setProducts(p.products); setBaskets(b.baskets); setOrders(r.orders); setQuestions(q.questions);
     } catch (e) { setError(e instanceof Error ? e.message : "Erro ao carregar o painel."); }
     finally { setLoading(false); }
   },[]);
@@ -138,6 +150,54 @@ export default function AdminDashboard() {
     catch(e) { setError(e instanceof Error ? e.message : "Não foi possível atualizar o pedido."); }
   }
 
+
+  async function saveQuestion(event:React.FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setError(""); setNotice("");
+    let options: {value:string;description:string}[];
+    try {
+      options = JSON.parse(questionForm.optionsText);
+      if (!Array.isArray(options)) throw new Error("As opções precisam estar em formato JSON de lista.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "JSON de opções inválido.");
+      return;
+    }
+    const payload = {
+      question_key:questionForm.question_key,
+      title:questionForm.title,
+      subtitle:questionForm.subtitle,
+      options,
+      multi:questionForm.multi,
+      required:questionForm.required,
+      position:Number(questionForm.position),
+      active:questionForm.active
+    };
+    try {
+      if (questionForm.id) await request("/api/admin/quiz-questions/" + questionForm.id,{method:"PATCH",body:JSON.stringify(payload)});
+      else await request("/api/admin/quiz-questions",{method:"POST",body:JSON.stringify(payload)});
+      setQuestionForm({
+        id:"",question_key:"",title:"",subtitle:"",
+        optionsText:JSON.stringify([{value:"Opção 1",description:"Descrição da opção"},{value:"Opção 2",description:"Descrição da opção"}],null,2),
+        multi:false,required:true,position:String(questions.length+1),active:true
+      });
+      setNotice("Pergunta do quiz salva."); await loadAll();
+    } catch(e) { setError(e instanceof Error ? e.message : "Não foi possível salvar a pergunta."); }
+  }
+
+  function editQuestion(question:QuizQuestion) {
+    setQuestionForm({
+      id:question.id,question_key:question.question_key,title:question.title,subtitle:question.subtitle || "",
+      optionsText:JSON.stringify(question.options,null,2),multi:question.multi,
+      required:question.required,position:String(question.position),active:question.active
+    });
+    setTab("quiz"); window.scrollTo({top:0,behavior:"smooth"});
+  }
+
+  async function deleteQuestion(question:QuizQuestion) {
+    if (!window.confirm("Excluir a pergunta " + question.title + "?")) return;
+    try { await request("/api/admin/quiz-questions/" + question.id,{method:"DELETE"}); setNotice("Pergunta excluída."); await loadAll(); }
+    catch(e) { setError(e instanceof Error ? e.message : "Não foi possível excluir a pergunta."); }
+  }
+
   function toggleBasketProduct(productId:string) {
     setBasketForm(previous => {
       const found = previous.items.some(item=>item.product_id===productId);
@@ -149,7 +209,7 @@ export default function AdminDashboard() {
   }
 
   const nav: Array<[typeof tab,string]> = [
-    ["overview","Visão geral"],["products","Produtos"],["baskets","Cestas"],["orders","Pedidos"]
+    ["overview","Visão geral"],["products","Produtos"],["baskets","Cestas"],["quiz","Perguntas do quiz"],["orders","Pedidos"]
   ];
 
   return (
@@ -212,6 +272,28 @@ export default function AdminDashboard() {
           {baskets.length===0?<p className="muted-copy">Nenhuma cesta cadastrada.</p>:baskets.map(basket=><article className="admin-list-item" key={basket.id}>
             <div><strong>{basket.name}</strong><p>{currency(basket.price_cents)} · {basket.basket_items?.length||0} tipos de produtos · {basket.active?"Publicada":"Oculta"}</p></div>
             <div className="item-actions"><button onClick={()=>editBasket(basket)}>Editar</button><button className="danger-link" onClick={()=>void deleteBasket(basket)}>Excluir</button></div>
+          </article>)}
+        </section>
+      </div>}
+
+
+      {!loading && tab==="quiz" && <div className="admin-columns">
+        <form className="admin-form" onSubmit={saveQuestion}>
+          <h2>{questionForm.id?"Editar pergunta":"Nova pergunta do quiz"}</h2>
+          <label>Identificador<input required pattern="[a-z0-9_-]+" maxLength={80} placeholder="ex.: household" value={questionForm.question_key} onChange={e=>setQuestionForm({...questionForm,question_key:e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g,"")})}/></label>
+          <label>Texto da pergunta<input required maxLength={240} value={questionForm.title} onChange={e=>setQuestionForm({...questionForm,title:e.target.value})}/></label>
+          <label>Descrição de apoio<textarea rows={3} maxLength={600} value={questionForm.subtitle} onChange={e=>setQuestionForm({...questionForm,subtitle:e.target.value})}/></label>
+          <label>Opções (JSON)<textarea rows={9} spellCheck={false} value={questionForm.optionsText} onChange={e=>setQuestionForm({...questionForm,optionsText:e.target.value})}/></label>
+          <p className="muted-copy">Use uma lista JSON com os campos value e description. Mínimo de duas opções.</p>
+          <div className="form-row"><label>Ordem<input type="number" min="0" value={questionForm.position} onChange={e=>setQuestionForm({...questionForm,position:e.target.value})}/></label><label className="inline-check"><input type="checkbox" checked={questionForm.multi} onChange={e=>setQuestionForm({...questionForm,multi:e.target.checked})}/> Permitir múltipla escolha</label></div>
+          <label className="inline-check"><input type="checkbox" checked={questionForm.required} onChange={e=>setQuestionForm({...questionForm,required:e.target.checked})}/> Resposta obrigatória</label>
+          <label className="inline-check"><input type="checkbox" checked={questionForm.active} onChange={e=>setQuestionForm({...questionForm,active:e.target.checked})}/> Pergunta ativa no quiz</label>
+          <div className="form-actions"><button className="primary-btn" type="submit">Salvar pergunta</button>{questionForm.id&&<button className="secondary-btn" type="button" onClick={()=>setQuestionForm({id:"",question_key:"",title:"",subtitle:"",optionsText:JSON.stringify([{value:"Opção 1",description:"Descrição da opção"},{value:"Opção 2",description:"Descrição da opção"}],null,2),multi:false,required:true,position:String(questions.length+1),active:true})}>Cancelar</button>}</div>
+        </form>
+        <section className="admin-list"><h2>Perguntas cadastradas ({questions.length})</h2>
+          {questions.length===0?<p className="muted-copy">Nenhuma pergunta salva. Execute o schema SQL atualizado para inserir as perguntas iniciais.</p>:questions.map(question=><article className="admin-list-item" key={question.id}>
+            <div><strong>{question.position}. {question.title}</strong><p>{question.question_key} · {question.options?.length||0} opções · {question.multi?"Múltipla escolha":"Escolha única"} · {question.active?"Ativa":"Inativa"}</p></div>
+            <div className="item-actions"><button onClick={()=>editQuestion(question)}>Editar</button><button className="danger-link" onClick={()=>void deleteQuestion(question)}>Excluir</button></div>
           </article>)}
         </section>
       </div>}
