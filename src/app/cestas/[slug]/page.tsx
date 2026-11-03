@@ -40,7 +40,7 @@ export default async function BasketDetailPage({ params }: { params: Promise<{ s
           {basket.basket_items?.length ? (
             <ul className="detail-list">
               {basket.basket_items.map((item, index) => (
-                <li key={index}><span>{item.products?.name || "Produto"}</span><strong>Quantidade: {item.quantity}</strong></li>
+                <li key={index}><span>{item.products?.[0]?.name || "Produto"}</span><strong>Quantidade: {item.quantity}</strong></li>
               ))}
             </ul>
           ) : <p className="section-lead">A composição será informada em breve.</p>}
