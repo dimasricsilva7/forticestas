@@ -49,14 +49,14 @@ export default function ResultPage() {
   },[]);
 
   const budget = typeof answers.budget === "string" ? answers.budget : "";
-  const range = budgetRange(budget);
   const suggestions = useMemo(() => {
+    const range = budgetRange(budget);
     const ordered = [...baskets].sort((a,b)=>a.price_cents-b.price_cents);
     if (!range) return ordered.slice(0,3);
     const within = ordered.filter(item=>item.price_cents>=range[0]&&item.price_cents<=range[1]);
     if (within.length) return within.slice(0,3);
     return ordered.slice(0,3);
-  },[baskets,range?.[0],range?.[1]]);
+  },[baskets,budget]);
 
   return (
     <main className="quiz-wrap">
