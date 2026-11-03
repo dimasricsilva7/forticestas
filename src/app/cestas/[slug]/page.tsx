@@ -46,7 +46,7 @@ export default async function BasketDetailPage({ params }: { params: Promise<{ s
           ) : <p className="section-lead">A composição será informada em breve.</p>}
           <div className="detail-price"><span>Valor da cesta</span><strong>{money(basket.price_cents)}</strong></div>
           <p className="text-xs text-gray-500 mt-3">Frete e prazo são calculados conforme o CEP antes da confirmação do pedido.</p>
-          <Link className="primary-btn mt-5" href="/quiz">Encontrar a cesta ideal</Link>
+          <Link className="primary-btn mt-5" href={"/checkout/"+basket.slug}>Comprar esta cesta →</Link>
         </div>
       </section>
       <footer className="footer">FortiCestas · Alimentos essenciais para o dia a dia</footer>
