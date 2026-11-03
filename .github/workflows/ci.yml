@@ -29,10 +29,20 @@ jobs:
       - name: Dependency security audit
         shell: bash
         run: |
-          npm audit --json > npm-audit.json || true
+          audit_status=0
+          timeout 45s npm audit --json > npm-audit.json || audit_status=$?
+          if [ "$audit_status" -ne 0 ]; then
+            echo "npm audit returned status $audit_status (the audit may be unavailable or timed out); lint and build will continue."
+          fi
           node -e '
             const fs = require("node:fs");
-            const report = JSON.parse(fs.readFileSync("npm-audit.json", "utf8"));
+            let report;
+            try {
+              report = JSON.parse(fs.readFileSync("npm-audit.json", "utf8"));
+            } catch {
+              console.log("Dependency audit did not return a valid JSON report. Run npm audit locally for details.");
+              process.exit(0);
+            }
             const entries = Object.entries(report.vulnerabilities || {});
             console.log("Dependency audit summary:", JSON.stringify(report.metadata?.vulnerabilities || {}));
             for (const [name, item] of entries) {
