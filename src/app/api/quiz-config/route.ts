@@ -9,7 +9,7 @@ export async function GET() {
 
   const { data, error } = await db
     .from("quiz_questions")
-    .select("question_key, title, subtitle, options, multi, position")
+    .select("question_key, title, subtitle, options, multi, required, position")
     .eq("active", true)
     .order("position", { ascending: true });
 
