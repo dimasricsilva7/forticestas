@@ -12,6 +12,9 @@ const productSchema = z.object({
   price_cents: z.number().int().min(0),
   stock_quantity: z.number().int().min(0),
   weight_grams: z.number().int().min(1).max(100000),
+  width_cm: z.number().min(0.1).max(300),
+  height_cm: z.number().min(0.1).max(300),
+  length_cm: z.number().min(0.1).max(300),
   image_url: z.string().url().nullable().optional(),
   active: z.boolean().default(true),
 });
