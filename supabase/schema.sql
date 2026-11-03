@@ -251,3 +251,216 @@ create table if not exists public.shipping_connections (
   updated_at timestamptz not null default now()
 );
 alter table public.shipping_connections enable row level security;
+
+
+-- Inventory reservation ledger. stock_quantity means physical units on hand.
+alter table public.products
+  add column if not exists reserved_quantity integer not null default 0
+  check (reserved_quantity >= 0);
+
+alter table public.order_items
+  add column if not exists line_total_cents integer not null default 0
+  check (line_total_cents >= 0);
+
+create table if not exists public.stock_reservations (
+  order_id uuid not null references public.orders(id) on delete cascade,
+  product_id uuid not null references public.products(id) on delete restrict,
+  quantity integer not null check (quantity > 0),
+  status text not null default 'reserved'
+    check (status in ('reserved','committed','released')),
+  expires_at timestamptz not null,
+  updated_at timestamptz not null default now(),
+  primary key (order_id, product_id)
+);
+alter table public.stock_reservations enable row level security;
+create index if not exists stock_reservations_expiry_idx
+  on public.stock_reservations(status, expires_at);
+
+create or replace function public.create_forticestas_order(
+  p_order jsonb,
+  p_items jsonb,
+  p_checkout_key text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_order public.orders%rowtype;
+  v_existing public.orders%rowtype;
+  v_item record;
+  v_product public.products%rowtype;
+  v_reservation public.stock_reservations%rowtype;
+begin
+  if p_checkout_key is null or length(p_checkout_key) > 100 then
+    raise exception 'Chave de checkout inválida.';
+  end if;
+
+  select * into v_existing
+  from public.orders
+  where checkout_idempotency_key = p_checkout_key;
+
+  if found then
+    return to_jsonb(v_existing);
+  end if;
+
+  if jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) = 0 then
+    raise exception 'O pedido precisa ter pelo menos um item.';
+  end if;
+
+  -- Release expired holds so abandoned Pix checkouts do not lock stock forever.
+  for v_reservation in
+    select * from public.stock_reservations
+    where status = 'reserved' and expires_at <= now()
+    for update
+  loop
+    update public.products
+      set reserved_quantity = greatest(0, reserved_quantity - v_reservation.quantity),
+          updated_at = now()
+      where id = v_reservation.product_id;
+    update public.stock_reservations
+      set status = 'released', updated_at = now()
+      where order_id = v_reservation.order_id and product_id = v_reservation.product_id;
+    update public.orders
+      set payment_status = 'failed', updated_at = now()
+      where id = v_reservation.order_id and payment_status = 'pending';
+  end loop;
+
+  insert into public.orders (
+    customer_name, customer_email, customer_phone, cep, address,
+    subtotal_cents, shipping_cents, total_cents, shipping_service,
+    checkout_idempotency_key, payment_provider
+  ) values (
+    p_order->>'customer_name',
+    nullif(p_order->>'customer_email',''),
+    p_order->>'customer_phone',
+    p_order->>'cep',
+    coalesce(p_order->'address','{}'::jsonb),
+    (p_order->>'subtotal_cents')::integer,
+    (p_order->>'shipping_cents')::integer,
+    (p_order->>'total_cents')::integer,
+    p_order->>'shipping_service',
+    p_checkout_key,
+    'bravopay'
+  )
+  returning * into v_order;
+
+  for v_item in
+    select *
+    from jsonb_to_recordset(p_items)
+      as items(product_id uuid, quantity integer, line_total_cents integer)
+  loop
+    if v_item.quantity is null or v_item.quantity <= 0 or v_item.line_total_cents is null or v_item.line_total_cents < 0 then
+      raise exception 'Quantidade ou total de item inválido.';
+    end if;
+
+    select * into v_product
+      from public.products
+      where id = v_item.product_id
+      for update;
+
+    if not found or not v_product.active then
+      raise exception 'Um produto do pedido não está mais disponível.';
+    end if;
+
+    if v_product.stock_quantity - v_product.reserved_quantity < v_item.quantity then
+      raise exception 'Estoque insuficiente para o produto %.', v_product.name;
+    end if;
+
+    update public.products
+      set reserved_quantity = reserved_quantity + v_item.quantity,
+          updated_at = now()
+      where id = v_product.id;
+
+    insert into public.stock_reservations(order_id, product_id, quantity, status, expires_at)
+      values (v_order.id, v_product.id, v_item.quantity, 'reserved', now() + interval '65 minutes');
+
+    insert into public.order_items(
+      order_id, product_id, product_name, sku, unit_price_cents, quantity, line_total_cents
+    ) values (
+      v_order.id, v_product.id, v_product.name, v_product.sku,
+      v_product.price_cents, v_item.quantity, v_item.line_total_cents
+    );
+  end loop;
+
+  return to_jsonb(v_order);
+end;
+$$;
+
+create or replace function public.finalize_forticestas_order_inventory(p_order_id uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_reservation public.stock_reservations%rowtype;
+begin
+  if exists (
+    select 1 from public.stock_reservations
+    where order_id = p_order_id and status = 'released'
+  ) then
+    return false;
+  end if;
+
+  for v_reservation in
+    select * from public.stock_reservations
+    where order_id = p_order_id and status = 'reserved'
+    for update
+  loop
+    update public.products
+      set stock_quantity = stock_quantity - v_reservation.quantity,
+          reserved_quantity = reserved_quantity - v_reservation.quantity,
+          updated_at = now()
+      where id = v_reservation.product_id
+        and stock_quantity >= v_reservation.quantity
+        and reserved_quantity >= v_reservation.quantity;
+
+    if not found then
+      raise exception 'Não foi possível baixar o estoque reservado do pedido.';
+    end if;
+
+    update public.stock_reservations
+      set status = 'committed', updated_at = now()
+      where order_id = p_order_id and product_id = v_reservation.product_id;
+  end loop;
+
+  return true;
+end;
+$$;
+
+create or replace function public.release_forticestas_order_inventory(p_order_id uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_reservation public.stock_reservations%rowtype;
+begin
+  for v_reservation in
+    select * from public.stock_reservations
+    where order_id = p_order_id and status = 'reserved'
+    for update
+  loop
+    update public.products
+      set reserved_quantity = greatest(0, reserved_quantity - v_reservation.quantity),
+          updated_at = now()
+      where id = v_reservation.product_id;
+
+    update public.stock_reservations
+      set status = 'released', updated_at = now()
+      where order_id = p_order_id and product_id = v_reservation.product_id;
+  end loop;
+
+  return true;
+end;
+$$;
+
+revoke all on function public.create_forticestas_order(jsonb,jsonb,text) from public, anon, authenticated;
+revoke all on function public.finalize_forticestas_order_inventory(uuid) from public, anon, authenticated;
+revoke all on function public.release_forticestas_order_inventory(uuid) from public, anon, authenticated;
+grant execute on function public.create_forticestas_order(jsonb,jsonb,text) to service_role;
+grant execute on function public.finalize_forticestas_order_inventory(uuid) to service_role;
+grant execute on function public.release_forticestas_order_inventory(uuid) to service_role;

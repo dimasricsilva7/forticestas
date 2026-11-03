@@ -101,6 +101,13 @@ export async function POST(request: NextRequest) {
 
       if (event.type === "transaction.paid") {
         if (order.payment_status === "pending" || order.payment_status === "failed") {
+          const { data: inventoryCommitted, error: inventoryError } = await db.rpc(
+            "finalize_forticestas_order_inventory",
+            { p_order_id: order.id },
+          );
+          if (inventoryError || inventoryCommitted !== true) {
+            throw new Error("Pagamento recebido, mas o estoque reservado não pôde ser confirmado. Revisão manual necessária.");
+          }
           const { error } = await db.from("orders").update({
             payment_status: "paid",
             paid_at: event.data.paid_at || new Date().toISOString(),
@@ -125,6 +132,11 @@ export async function POST(request: NextRequest) {
         if (error) throw new Error("Não foi possível registrar o chargeback.");
       } else if (event.type === "transaction.expired" || event.type === "transaction.failed") {
         if (order.payment_status === "pending") {
+          const { error: releaseError } = await db.rpc(
+            "release_forticestas_order_inventory",
+            { p_order_id: order.id },
+          );
+          if (releaseError) throw new Error("Não foi possível liberar a reserva de estoque.");
           const { error } = await db.from("orders").update({
             payment_status: "failed",
             updated_at: new Date().toISOString(),

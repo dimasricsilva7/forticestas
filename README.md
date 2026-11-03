@@ -44,7 +44,8 @@ As rotas administrativas validam sessão Supabase Auth e associação à tabela 
 
 ## Checkout, pagamento e frete
 - A página por cesta é `/checkout/[slug]`; o endpoint do servidor é `POST /api/checkout`.
-- O checkout consulta a cesta e o estoque no banco, consulta o CEP no ViaCEP e exige uma cotação do adaptador de frete antes de criar o pedido ou a cobrança.
+- O checkout consulta a cesta, valida e reserva o estoque atomicamente no banco, salva o retrato dos produtos no pedido, consulta o CEP no ViaCEP e exige uma cotação do adaptador de frete antes de criar a cobrança.
+- O estoque é reservado quando o pedido é criado, baixado definitivamente após o webhook `transaction.paid` e liberado quando o Pix expira ou falha. Reservas abandonadas vencem automaticamente após 65 minutos na próxima tentativa de checkout.
 - Cadastre o peso real (gramas), largura, altura e comprimento (centímetros) de cada produto no painel administrativo. O checkout bloqueia o pedido quando algum dado logístico obrigatório estiver ausente.
 - O adaptador BravoPay em `src/lib/integrations/bravopay.ts` implementa criação de cobrança PIX na API v1, header `Idempotency-Key` e validação HMAC-SHA256 do webhook.
 - O endpoint de recebimento é `POST /api/webhooks/bravopay`. Cadastre a URL pública completa no Dashboard BravoPay > Integrações e copie o segredo `whsec_...` para `BRAVOPAY_WEBHOOK_SECRET`.

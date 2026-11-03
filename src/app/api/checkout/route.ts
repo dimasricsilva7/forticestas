@@ -98,6 +98,7 @@ export async function POST(request: NextRequest) {
     if (!basket.basket_items?.length) return errorResponse("Esta cesta ainda não tem produtos cadastrados.", 422);
 
     const shippingItems = [];
+    const orderLines: Array<{ product_id: string; quantity: number; gross_cents: number }> = [];
     for (const item of basket.basket_items) {
       const product = Array.isArray(item.products) ? item.products[0] : item.products;
       if (!product || !product.active) return errorResponse("Um dos produtos desta cesta não está disponível.", 409);
@@ -108,6 +109,11 @@ export async function POST(request: NextRequest) {
       ) {
         return errorResponse(`Cadastre peso, largura, altura e comprimento de ${product.name} antes de habilitar o checkout.`, 422);
       }
+      orderLines.push({
+        product_id: product.id,
+        quantity: item.quantity,
+        gross_cents: Math.max(0, Number(product.price_cents) * item.quantity),
+      });
       shippingItems.push({
         sku: product.sku || product.id,
         quantity: item.quantity,
@@ -156,41 +162,49 @@ export async function POST(request: NextRequest) {
       number: parsed.data.number,
       complement: parsed.data.complement,
     };
-    const { data: createdOrder, error: createOrderError } = await db.from("orders").insert({
-      customer_name: parsed.data.customer.name,
-      customer_email: parsed.data.customer.email || null,
-      customer_phone: parsed.data.customer.phone,
-      cep: parsed.data.cep,
-      address,
-      subtotal_cents: subtotalCents,
-      shipping_cents: shippingCents,
-      total_cents: subtotalCents + shippingCents,
-      shipping_service: shipping.service,
-      checkout_idempotency_key: idempotencyKey,
-      payment_provider: "bravopay",
-    }).select("id, order_number, customer_name, customer_email, customer_phone, total_cents, payment_status, payment_reference, payment_payload").single();
 
-    if (createOrderError || !createdOrder) {
-      if (createOrderError?.code === "23505") {
-        return errorResponse("Este checkout já está sendo processado. Atualize a página e tente novamente.", 409);
-      }
+    // Allocate the fixed basket price across its products so the item snapshot
+    // reconciles exactly with the order subtotal, including the basket discount.
+    const grossTotal = orderLines.reduce((sum, line) => sum + line.gross_cents, 0);
+    let allocatedCents = 0;
+    const orderItems = orderLines.map((line, index) => {
+      const lineTotal = index === orderLines.length - 1
+        ? subtotalCents - allocatedCents
+        : grossTotal > 0
+          ? Math.floor(subtotalCents * line.gross_cents / grossTotal)
+          : Math.floor(subtotalCents / orderLines.length);
+      allocatedCents += lineTotal;
+      return {
+        product_id: line.product_id,
+        quantity: line.quantity,
+        line_total_cents: lineTotal,
+      };
+    });
+
+    const { data: createdOrderData, error: createOrderError } = await db.rpc("create_forticestas_order", {
+      p_order: {
+        customer_name: parsed.data.customer.name,
+        customer_email: parsed.data.customer.email || "",
+        customer_phone: parsed.data.customer.phone,
+        cep: parsed.data.cep,
+        address,
+        subtotal_cents: subtotalCents,
+        shipping_cents: shippingCents,
+        total_cents: subtotalCents + shippingCents,
+        shipping_service: shipping.service,
+      },
+      p_items: orderItems,
+      p_checkout_key: idempotencyKey,
+    });
+
+    if (createOrderError || !createdOrderData) {
+      const message = createOrderError?.message || "Não foi possível registrar o pedido.";
+      if (message.toLowerCase().includes("estoque")) return errorResponse(message, 409);
+      if (message.toLowerCase().includes("disponível")) return errorResponse(message, 409);
       return errorResponse("Não foi possível registrar o pedido.", 503);
     }
 
-    const { error: itemError } = await db.from("order_items").insert({
-      order_id: createdOrder.id,
-      product_id: null,
-      product_name: basket.name,
-      sku: null,
-      unit_price_cents: subtotalCents,
-      quantity: 1,
-    });
-    if (itemError) {
-      await db.from("orders").delete().eq("id", createdOrder.id);
-      return errorResponse("Não foi possível registrar os itens do pedido.", 503);
-    }
-
-    order = createdOrder;
+    order = createdOrderData as typeof order;
   }
 
   if (!order) return errorResponse("Não foi possível iniciar o pagamento.", 500);
