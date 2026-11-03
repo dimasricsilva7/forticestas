@@ -25,6 +25,9 @@ type BasketProduct = {
   sku: string | null;
   price_cents: number;
   weight_grams: number;
+  width_cm: number;
+  height_cm: number;
+  length_cm: number;
   active: boolean;
   stock_quantity: number;
 };
@@ -83,7 +86,7 @@ export async function POST(request: NextRequest) {
   } else {
     const { data: basketData, error: basketError } = await db
       .from("baskets")
-      .select("id, name, slug, price_cents, active, basket_items(quantity, products(id, name, sku, price_cents, weight_grams, active, stock_quantity))")
+      .select("id, name, slug, price_cents, active, basket_items(quantity, products(id, name, sku, price_cents, weight_grams, width_cm, height_cm, length_cm, active, stock_quantity))")
       .eq("slug", parsed.data.basketSlug)
       .eq("active", true)
       .maybeSingle();
