@@ -15,8 +15,10 @@ export default function AdminShippingCard() {
   const [loading,setLoading] = useState(true);
 
   useEffect(() => {
-    setResult(new URLSearchParams(window.location.search).get("shipping"));
     let active = true;
+    void Promise.resolve().then(() => {
+      if (active) setResult(new URLSearchParams(window.location.search).get("shipping"));
+    });
     fetch("/api/admin/shipping/status",{cache:"no-store"})
       .then(response=>response.ok?response.json():Promise.reject())
       .then((data:Status)=>{if(active)setStatus(data);})

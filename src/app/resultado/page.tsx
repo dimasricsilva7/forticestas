@@ -34,18 +34,23 @@ export default function ResultPage() {
   const [loading,setLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      setAnswers(JSON.parse(sessionStorage.getItem("forticestas_answers") || "{}"));
-      setCep(sessionStorage.getItem("forticestas_cep") || "");
-      setAddress(JSON.parse(sessionStorage.getItem("forticestas_address") || "{}"));
-    } catch {
-      // Ignore invalid local session data and show the catalog fallback.
-    }
+    let active = true;
+    void Promise.resolve().then(() => {
+      if (!active) return;
+      try {
+        setAnswers(JSON.parse(sessionStorage.getItem("forticestas_answers") || "{}"));
+        setCep(sessionStorage.getItem("forticestas_cep") || "");
+        setAddress(JSON.parse(sessionStorage.getItem("forticestas_address") || "{}"));
+      } catch {
+        // Ignore invalid local session data and show the catalog fallback.
+      }
+    });
     fetch("/api/catalog",{cache:"no-store"})
       .then(response=>response.ok?response.json():Promise.reject())
       .then((data:{baskets?:Basket[]})=>setBaskets(data.baskets||[]))
       .catch(()=>setBaskets([]))
-      .finally(()=>setLoading(false));
+      .finally(()=>{ if (active) setLoading(false); });
+    return () => { active = false; };
   },[]);
 
   const budget = typeof answers.budget === "string" ? answers.budget : "";

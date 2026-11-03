@@ -82,7 +82,9 @@ export default function AdminDashboard() {
     finally { setLoading(false); }
   },[]);
 
-  useEffect(() => { void loadAll(); },[loadAll]);
+  useEffect(() => {
+    void Promise.resolve().then(() => loadAll());
+  },[loadAll]);
 
   async function saveProduct(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); setError(""); setNotice("");
