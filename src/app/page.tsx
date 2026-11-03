@@ -5,14 +5,20 @@ export default function HomePage() {
     <main className="page-shell">
       <header className="topbar">
         <Link href="/" className="brand"><span className="brand-mark">F</span> FortiCestas</Link>
-        <span className="top-note">Praticidade para cuidar da sua família</span>
+        <div className="flex items-center gap-3">
+          <Link href="/cestas" className="text-sm font-bold text-green-800">Ver cestas</Link>
+          <Link href="/quiz" className="secondary-btn">Montar minha cesta</Link>
+        </div>
       </header>
       <section className="hero">
         <div>
           <span className="eyebrow">Sua compra mais simples</span>
           <h1>Uma cesta que combina com a <em>sua família.</em></h1>
           <p>Conte um pouco sobre sua casa e encontre uma sugestão de cesta básica de acordo com o tamanho da família, suas preferências e seu orçamento.</p>
-          <Link href="/quiz" className="primary-btn">Encontrar minha cesta <span aria-hidden>→</span></Link>
+          <div className="flex flex-wrap gap-3">
+            <Link href="/quiz" className="primary-btn">Encontrar minha cesta <span aria-hidden>→</span></Link>
+            <Link href="/cestas" className="secondary-btn">Ver catálogo</Link>
+          </div>
           <div className="trust-row"><span>✓ Escolhas personalizadas</span><span>✓ Opções por orçamento</span><span>✓ Consulta de entrega por CEP</span></div>
         </div>
         <div className="hero-art" aria-label="Ilustração de cesta de alimentos">
