@@ -171,3 +171,25 @@ create policy "public can read active quiz questions"
 
 -- The service-role key bypasses RLS and is used only by server routes.
 -- Do not create public INSERT/UPDATE/DELETE policies for orders or admin data.
+
+
+-- Editable quiz configuration. Reapplying this schema will not overwrite admin edits.
+alter table public.quiz_questions
+  add column if not exists multi boolean not null default false;
+
+insert into public.quiz_questions
+  (question_key, title, subtitle, options, multi, required, position, active)
+values
+  ('household', 'Quantas pessoas vivem na sua casa?', 'Vamos considerar o tamanho da sua família para sugerir uma cesta adequada.',
+   '[{"value":"1 pessoa","description":"Uma pessoa"},{"value":"2 pessoas","description":"Duas pessoas"},{"value":"3 a 4 pessoas","description":"De três a quatro pessoas"},{"value":"5 pessoas ou mais","description":"Cinco pessoas ou mais"}]'::jsonb, false, true, 1, true),
+  ('goal', 'O que é mais importante para você?', 'Escolha o que melhor representa sua prioridade neste momento.',
+   '[{"value":"Economizar","description":"Quero aproveitar melhor meu orçamento"},{"value":"Itens essenciais","description":"Quero garantir o básico em casa"},{"value":"Variedade","description":"Quero uma seleção mais completa"}]'::jsonb, false, true, 2, true),
+  ('foods', 'Quais itens não podem faltar?', 'Selecione uma ou mais opções que sua família costuma consumir.',
+   '[{"value":"Arroz e feijão","description":"A base das refeições"},{"value":"Massas e molhos","description":"Praticidade durante a semana"},{"value":"Café e açúcar","description":"Para a rotina diária"},{"value":"Óleo e temperos","description":"Complementos para cozinhar"},{"value":"Biscoitos e complementos","description":"Itens para lanches"}]'::jsonb, true, true, 3, true),
+  ('budget', 'Qual faixa de orçamento você planeja?', 'Essa resposta ajuda a filtrar sugestões. Os valores finais serão exibidos antes do pagamento.',
+   '[{"value":"Até R$ 150","description":"Uma opção econômica"},{"value":"R$ 151 a R$ 250","description":"Equilíbrio entre preço e variedade"},{"value":"R$ 251 a R$ 350","description":"Uma cesta mais completa"},{"value":"Acima de R$ 350","description":"Maior variedade de itens"}]'::jsonb, false, true, 4, true),
+  ('frequency', 'Com que frequência pretende comprar?', 'Queremos entender o ritmo ideal para sua casa.',
+   '[{"value":"Uma vez","description":"Compra pontual"},{"value":"Todo mês","description":"Reposição mensal"},{"value":"A cada 15 dias","description":"Reposição quinzenal"}]'::jsonb, false, true, 5, true),
+  ('basket', 'Qual tipo de cesta prefere?', 'Você pode refinar a escolha antes de ver a recomendação.',
+   '[{"value":"Tradicional","description":"Alimentos básicos para o dia a dia"},{"value":"Econômica","description":"Foco nos itens essenciais"},{"value":"Completa","description":"Mais variedade de produtos"}]'::jsonb, false, true, 6, true)
+on conflict (question_key) do nothing;
