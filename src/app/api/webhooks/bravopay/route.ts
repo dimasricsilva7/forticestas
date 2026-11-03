@@ -100,18 +100,23 @@ export async function POST(request: NextRequest) {
       }
 
       if (event.type === "transaction.paid") {
-        const { error } = await db.from("orders").update({
-          payment_status: "paid",
-          paid_at: event.data.paid_at || new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }).eq("id", order.id).eq("payment_reference", event.data.id);
-        if (error) throw new Error("Não foi possível confirmar o pagamento no pedido.");
+        if (order.payment_status === "pending" || order.payment_status === "failed") {
+          const { error } = await db.from("orders").update({
+            payment_status: "paid",
+            paid_at: event.data.paid_at || new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }).eq("id", order.id).eq("payment_reference", event.data.id)
+            .in("payment_status", ["pending", "failed"]);
+          if (error) throw new Error("Não foi possível confirmar o pagamento no pedido.");
+        }
       } else if (event.type === "transaction.refunded") {
-        const { error } = await db.from("orders").update({
-          payment_status: "refunded",
-          updated_at: new Date().toISOString(),
-        }).eq("id", order.id).eq("payment_reference", event.data.id);
-        if (error) throw new Error("Não foi possível registrar o reembolso.");
+        if (order.payment_status !== "chargeback") {
+          const { error } = await db.from("orders").update({
+            payment_status: "refunded",
+            updated_at: new Date().toISOString(),
+          }).eq("id", order.id).eq("payment_reference", event.data.id);
+          if (error) throw new Error("Não foi possível registrar o reembolso.");
+        }
       } else if (event.type === "transaction.chargeback") {
         const { error } = await db.from("orders").update({
           payment_status: "chargeback",
