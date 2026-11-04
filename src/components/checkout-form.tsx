@@ -71,7 +71,7 @@ export default function CheckoutForm({ basket }: { basket: CheckoutBasket }) {
         <span className="eyebrow">Pedido #{payment.orderNumber}</span>
         <h2>Pix gerado</h2>
         <p className="section-lead">Finalize o pagamento no aplicativo do seu banco. O pedido só será confirmado depois que a BravoPay enviar a confirmação segura.</p>
-        <div className="checkout-total"><span>Total do pedido</span><strong>{money(payment.amountCents)}</strong></div>
+        <div className="checkout-total"><span>Total do pedido</span><strong>{money(payment.amountCents)}</strong></div><p className="text-xs text-green-700 font-bold">Frete grátis · R$ 0,00</p>
         <label className="checkout-label" htmlFor="pix-code">Pix copia e cola</label>
         <textarea id="pix-code" className="text-input pix-code" readOnly value={payment.pix.copy_paste} rows={5}/>
         <button type="button" className="primary-btn" onClick={()=>void copyPix()}>{copied?"Código copiado ✓":"Copiar código Pix"}</button>
@@ -85,7 +85,7 @@ export default function CheckoutForm({ basket }: { basket: CheckoutBasket }) {
     <form className="checkout-panel" onSubmit={submit}>
       <span className="eyebrow">Finalizar pedido</span>
       <h2>{basket.name}</h2>
-      <div className="checkout-total"><span>Valor da cesta (frete calculado no próximo passo)</span><strong>{money(basket.price_cents)}</strong></div>
+      <div className="checkout-total"><span>Valor da cesta</span><strong>{money(basket.price_cents)}</strong></div><p className="text-xs text-green-700 font-bold">Frete grátis · R$ 0,00</p>
       <div className="checkout-fields">
         <label className="checkout-label">Nome completo<input className="text-input" required minLength={2} maxLength={120} autoComplete="name" value={customer.name} onChange={e=>setCustomer({...customer,name:e.target.value})}/></label>
         <div className="form-row">
@@ -99,8 +99,8 @@ export default function CheckoutForm({ basket }: { basket: CheckoutBasket }) {
         <label className="checkout-label">Complemento (opcional)<input className="text-input" maxLength={120} value={address.complement} onChange={e=>setAddress({...address,complement:e.target.value})}/></label>
       </div>
       {error&&<p className="admin-error" role="alert">{error}</p>}
-      <button className="primary-btn w-full" type="submit" disabled={loading}>{loading?"Calculando frete e gerando Pix...":"Continuar para pagamento Pix"}</button>
-      <p className="text-xs text-gray-500 mt-4">O valor final e o prazo dependem de uma cotação real de entrega. Nenhuma cobrança é feita enquanto o frete não puder ser confirmado.</p>
+      <button className="primary-btn w-full" type="submit" disabled={loading}>{loading?"Gerando Pix...":"Continuar para pagamento Pix"}</button>
+      <p className="text-xs text-gray-500 mt-4">Frete grátis: nenhum valor de entrega será adicionado ao total. O pagamento é realizado via Pix.</p>
     </form>
   );
 }

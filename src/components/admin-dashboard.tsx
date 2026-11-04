@@ -16,7 +16,8 @@ type Basket = {
 type OrderItem = { product_name: string; sku: string | null; quantity: number; line_total_cents: number };
 type Order = {
   id: string; order_number: number; customer_name: string; customer_phone: string;
-  cep: string; total_cents: number; payment_status: string; fulfillment_status: string;
+  cep: string; address: {logradouro?:string; bairro?:string; localidade?:string; uf?:string; number?:string; complement?:string};
+  total_cents: number; payment_status: string; fulfillment_status: string;
   shipping_service: string | null; created_at: string; order_items: OrderItem[];
 };
 type ProductForm = {
@@ -364,8 +365,8 @@ export default function AdminDashboard() {
 
       {!loading && tab==="orders" && <section className="admin-list orders-list">
         <h2>Últimos pedidos</h2>
-        {orders.length===0?<p className="muted-copy">Nenhum pedido recebido. O checkout será habilitado após configurar pagamento e frete.</p>:orders.map(order=><article className="admin-list-item order-item" key={order.id}>
-          <div><strong>Pedido #{order.order_number}</strong><p>{order.customer_name} · {order.customer_phone} · CEP {order.cep}</p><p>{currency(order.total_cents)} · pagamento: {order.payment_status} · {new Date(order.created_at).toLocaleString("pt-BR")}</p><p>Entrega: {order.shipping_service || "—"}</p>{order.order_items?.map((item,index)=><p key={index}>{item.quantity} × {item.product_name} · {currency(item.line_total_cents)}</p>)}</div>
+        {orders.length===0?<p className="muted-copy">Nenhum pedido recebido ainda. Os pedidos gerados pelo checkout Pix aparecerão aqui.</p>:orders.map(order=><article className="admin-list-item order-item" key={order.id}>
+          <div><strong>Pedido #{order.order_number}</strong><p>{order.customer_name} · {order.customer_phone} · CEP {order.cep}</p><p>{[order.address?.logradouro,order.address?.number,order.address?.complement,order.address?.bairro,[order.address?.localidade,order.address?.uf].filter(Boolean).join("/")].filter(Boolean).join(" · ")}</p><p>{currency(order.total_cents)} · pagamento: {order.payment_status} · {new Date(order.created_at).toLocaleString("pt-BR")}</p><p>Entrega: {order.shipping_service || "Frete grátis"}</p>{order.order_items?.map((item,index)=><p key={index}>{item.quantity} × {item.product_name} · {currency(item.line_total_cents)}</p>)}</div>
           <label className="order-status">Entrega<select value={order.fulfillment_status} onChange={e=>void updateOrder(order.id,e.target.value)}><option value="pending">Pendente</option><option value="processing">Em separação</option><option value="shipped">Enviado</option><option value="delivered">Entregue</option><option value="cancelled">Cancelado</option></select></label>
         </article>)}
       </section>}
