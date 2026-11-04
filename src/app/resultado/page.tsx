@@ -39,14 +39,17 @@ export default function ResultPage() {
 
   useEffect(() => {
     let active = true;
-    try {
-      setAnswers(JSON.parse(sessionStorage.getItem("forticestas_answers") || "{}"));
-      setQuestionLabels(JSON.parse(sessionStorage.getItem("forticestas_question_labels") || "[]"));
-      setCep(sessionStorage.getItem("forticestas_cep") || "");
-      setAddress(JSON.parse(sessionStorage.getItem("forticestas_address") || "{}"));
-    } catch {
-      // Invalid or expired browser session: show the fallback state.
-    }
+    void Promise.resolve().then(() => {
+      if (!active) return;
+      try {
+        setAnswers(JSON.parse(sessionStorage.getItem("forticestas_answers") || "{}"));
+        setQuestionLabels(JSON.parse(sessionStorage.getItem("forticestas_question_labels") || "[]"));
+        setCep(sessionStorage.getItem("forticestas_cep") || "");
+        setAddress(JSON.parse(sessionStorage.getItem("forticestas_address") || "{}"));
+      } catch {
+        // Invalid or expired browser session: show the fallback state.
+      }
+    });
 
     fetch("/api/catalog", { cache: "no-store" })
       .then((response) => {
@@ -70,7 +73,16 @@ export default function ResultPage() {
     return () => { active = false; };
   }, []);
 
-  const quizAnswers = answers as QuizAnswers;
+  const quizAnswers: QuizAnswers = {
+    household: typeof answers.household === "string" ? answers.household : undefined,
+    goal: typeof answers.goal === "string" ? answers.goal : undefined,
+    foods: Array.isArray(answers.foods)
+      ? answers.foods
+      : typeof answers.foods === "string" ? [answers.foods] : undefined,
+    budget: typeof answers.budget === "string" ? answers.budget : undefined,
+    frequency: typeof answers.frequency === "string" ? answers.frequency : undefined,
+    basket: typeof answers.basket === "string" ? answers.basket : undefined,
+  };
   const ranked = useMemo(
     () => rankBaskets(
       baskets.map((basket) => ({
