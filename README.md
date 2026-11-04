@@ -18,7 +18,7 @@ Abra http://localhost:3000.
 
 ## Rotas
 - `/` — página inicial
-- `/quiz` — questionário de perfil com consulta de CEP via ViaCEP
+- `/quiz` — questionário interativo editável, com múltipla escolha e consulta de CEP via ViaCEP
 - `/resultado` — resumo inicial das respostas
 - `/cestas` — catálogo de cestas ativas no Supabase
 - `/cestas/[slug]` — composição e preço de uma cesta
@@ -44,6 +44,8 @@ As rotas administrativas validam sessão Supabase Auth e associação à tabela 
 
 ## Checkout, pagamento e frete
 - A página por cesta é `/checkout/[slug]`; o endpoint do servidor é `POST /api/checkout`.
+- As perguntas do quiz são editáveis no painel. Mantenha as chaves `household`, `goal`, `foods`, `budget` e `basket` para preservar os critérios correspondentes da recomendação automática. A frequência de compra é registrada no perfil e pode ser usada pela equipe para campanhas futuras.
+- Para cada cesta, cadastre no painel o perfil (econômica, tradicional ou completa), os tamanhos de família atendidos e os grupos de alimentos. O resultado compara essas informações com as respostas e prioriza as cestas mais compatíveis, respeitando o orçamento.
 - O checkout consulta a cesta, valida e reserva o estoque atomicamente no banco, salva o retrato dos produtos no pedido, consulta o CEP no ViaCEP e exige uma cotação do adaptador de frete antes de criar a cobrança.
 - O estoque é reservado quando o pedido é criado, baixado definitivamente após o webhook `transaction.paid` e liberado quando o Pix expira ou falha. Reservas abandonadas vencem automaticamente após 65 minutos na próxima tentativa de checkout.
 - Cadastre o peso real (gramas), largura, altura e comprimento (centímetros) de cada produto no painel administrativo. O checkout bloqueia o pedido quando algum dado logístico obrigatório estiver ausente.

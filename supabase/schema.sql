@@ -464,3 +464,16 @@ revoke all on function public.release_forticestas_order_inventory(uuid) from pub
 grant execute on function public.create_forticestas_order(jsonb,jsonb,text) to service_role;
 grant execute on function public.finalize_forticestas_order_inventory(uuid) to service_role;
 grant execute on function public.release_forticestas_order_inventory(uuid) to service_role;
+
+
+-- Basket matching metadata used by the FortiCestas recommendation quiz.
+alter table public.baskets
+  add column if not exists category text not null default 'traditional',
+  add column if not exists supported_households text[] not null default '{}',
+  add column if not exists food_tags text[] not null default '{}';
+
+alter table public.baskets
+  drop constraint if exists baskets_category_check;
+alter table public.baskets
+  add constraint baskets_category_check
+  check (category in ('economic','traditional','complete'));

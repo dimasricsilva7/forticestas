@@ -13,12 +13,13 @@ type QuizStep = {
   multi?: boolean;
   required?: boolean;
 };
+type Answers = Record<string, string | string[]>;
 
 const fallbackSteps: QuizStep[] = [
   {
     key: "household",
     title: "Quantas pessoas vivem na sua casa?",
-    subtitle: "Vamos considerar o tamanho da sua família para sugerir uma cesta adequada.",
+    subtitle: "Assim conseguimos considerar o tamanho da sua família na recomendação.",
     options: [
       { value: "1 pessoa", description: "Uma pessoa" },
       { value: "2 pessoas", description: "Duas pessoas" },
@@ -29,7 +30,7 @@ const fallbackSteps: QuizStep[] = [
   {
     key: "goal",
     title: "O que é mais importante para você?",
-    subtitle: "Escolha o que melhor representa sua prioridade neste momento.",
+    subtitle: "Escolha a prioridade que melhor representa sua compra.",
     options: [
       { value: "Economizar", description: "Quero aproveitar melhor meu orçamento" },
       { value: "Itens essenciais", description: "Quero garantir o básico em casa" },
@@ -39,7 +40,7 @@ const fallbackSteps: QuizStep[] = [
   {
     key: "foods",
     title: "Quais itens não podem faltar?",
-    subtitle: "Selecione uma ou mais opções que sua família costuma consumir.",
+    subtitle: "Marque todos os grupos de alimentos que sua família costuma consumir.",
     multi: true,
     options: [
       { value: "Arroz e feijão", description: "A base das refeições" },
@@ -52,7 +53,7 @@ const fallbackSteps: QuizStep[] = [
   {
     key: "budget",
     title: "Qual faixa de orçamento você planeja?",
-    subtitle: "Essa resposta ajuda a filtrar sugestões. Os valores finais serão exibidos antes do pagamento.",
+    subtitle: "Vamos priorizar cestas dentro do valor que pretende investir.",
     options: [
       { value: "Até R$ 150", description: "Uma opção econômica" },
       { value: "R$ 151 a R$ 250", description: "Equilíbrio entre preço e variedade" },
@@ -63,7 +64,7 @@ const fallbackSteps: QuizStep[] = [
   {
     key: "frequency",
     title: "Com que frequência pretende comprar?",
-    subtitle: "Queremos entender o ritmo ideal para sua casa.",
+    subtitle: "Essa informação ajuda a entender a rotina de reposição da sua casa.",
     options: [
       { value: "Uma vez", description: "Compra pontual" },
       { value: "Todo mês", description: "Reposição mensal" },
@@ -73,7 +74,7 @@ const fallbackSteps: QuizStep[] = [
   {
     key: "basket",
     title: "Qual tipo de cesta prefere?",
-    subtitle: "Você pode refinar a escolha antes de ver a recomendação.",
+    subtitle: "Escolha o perfil de cesta que mais combina com o que procura.",
     options: [
       { value: "Tradicional", description: "Alimentos básicos para o dia a dia" },
       { value: "Econômica", description: "Foco nos itens essenciais" },
@@ -82,7 +83,10 @@ const fallbackSteps: QuizStep[] = [
   },
 ];
 
-type Answers = Record<string, string | string[]>;
+function formatCep(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 8);
+  return digits.length > 5 ? digits.slice(0, 5) + "-" + digits.slice(5) : digits;
+}
 
 export default function QuizPage() {
   const router = useRouter();
@@ -91,45 +95,50 @@ export default function QuizPage() {
   const [cep, setCep] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [configLoading, setConfigLoading] = useState(true);
   const [quizSteps, setQuizSteps] = useState<QuizStep[]>(fallbackSteps);
+
   useEffect(() => {
     let active = true;
-    fetch("/api/quiz-config", { cache: "no-store" })
+    fetch("/api/quiz-config", { cache: "no-store", signal: AbortSignal.timeout(5000) })
       .then((response) => response.ok ? response.json() : Promise.reject())
-      .then((data: { questions?: Array<{ question_key: string; title: string; subtitle: string; options: QuizOption[]; multi?: boolean; required?: boolean }> }) => {
+      .then((data: { questions?: QuizStep[] }) => {
         const configured = (data.questions || [])
-          .filter((question) => question.title && Array.isArray(question.options) && question.options.length >= 2)
-          .map((question) => ({
-            key: question.question_key,
-            title: question.title,
-            subtitle: question.subtitle || "",
-            options: question.options,
-            multi: Boolean(question.multi),
-            required: question.required !== false,
-          }));
+          .filter((question) =>
+            typeof question.key === "string" &&
+            typeof question.title === "string" &&
+            Array.isArray(question.options) &&
+            question.options.length >= 2,
+          );
         if (active && configured.length) {
           setQuizSteps(configured);
-          setStep(0);
-          setAnswers({});
         }
       })
       .catch(() => {
-        // Keep the built-in fallback questions if the database is not configured.
+        // The built-in questionnaire remains available if Supabase is offline.
+      })
+      .finally(() => {
+        if (active) setConfigLoading(false);
       });
+
     return () => { active = false; };
   }, []);
-  const current = quizSteps[Math.min(step, quizSteps.length - 1)];
+
+  const current = quizSteps[step] || fallbackSteps[0];
   const progress = useMemo(
     () => Math.round(((step + 1) / (quizSteps.length + 1)) * 100),
     [step, quizSteps.length],
   );
+  const selectedCount = Array.isArray(answers[current.key])
+    ? (answers[current.key] as string[]).length
+    : answers[current.key] ? 1 : 0;
 
   function choose(value: string) {
     setError("");
     setAnswers((previous) => {
       if (!current.multi) return { ...previous, [current.key]: value };
       const selected = Array.isArray(previous[current.key])
-        ? (previous[current.key] as string[])
+        ? previous[current.key] as string[]
         : [];
       return {
         ...previous,
@@ -160,22 +169,34 @@ export default function QuizPage() {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+      const response = await fetch(`https://viacep.com.br/ws/${digits}/json/`, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(8000),
+      });
       if (!response.ok) throw new Error("Não foi possível consultar o CEP.");
-      const data: { erro?: boolean; localidade?: string; uf?: string } =
-        await response.json();
+      const data: {
+        erro?: boolean;
+        cep?: string;
+        logradouro?: string;
+        bairro?: string;
+        localidade?: string;
+        uf?: string;
+      } = await response.json();
+
       if (data.erro) throw new Error("CEP não encontrado. Confira os números.");
 
       sessionStorage.setItem("forticestas_answers", JSON.stringify(answers));
+      sessionStorage.setItem("forticestas_question_labels", JSON.stringify(
+        quizSteps.map(({ key, title }) => ({ key, title })),
+      ));
       sessionStorage.setItem("forticestas_cep", digits);
       sessionStorage.setItem("forticestas_address", JSON.stringify(data));
+      sessionStorage.setItem("forticestas_quiz_completed_at", new Date().toISOString());
       router.push("/resultado");
     } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : "Não foi possível validar o CEP.",
-      );
+      setError(caught instanceof Error
+        ? caught.message
+        : "Não foi possível validar o CEP. Tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -184,20 +205,33 @@ export default function QuizPage() {
   return (
     <main className="quiz-wrap">
       <section className="quiz-card">
-        <header className="flex items-center justify-between">
+        <header className="flex items-center justify-between gap-3">
           <Link href="/" className="brand">
             <span className="brand-mark">F</span> FortiCestas
           </Link>
           <span className="text-xs text-gray-500">
-            Etapa {Math.min(step + 1, quizSteps.length + 1)} de {quizSteps.length + 1}
+            {configLoading ? "Preparando quiz..." : `Etapa ${Math.min(step + 1, quizSteps.length + 1)} de ${quizSteps.length + 1}`}
           </span>
         </header>
 
-        <div className="progress-track">
-          <div className="progress-fill" style={{ width: `${progress}%` }} />
+        <div
+          className="progress-track"
+          role="progressbar"
+          aria-label="Progresso do questionário"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={configLoading ? 0 : progress}
+        >
+          <div className="progress-fill" style={{ width: configLoading ? "0%" : `${progress}%` }} />
         </div>
 
-        {step < quizSteps.length ? (
+        {configLoading ? (
+          <div className="quiz-loading" aria-live="polite">
+            <span className="quiz-spinner" />
+            <strong>Preparando suas perguntas...</strong>
+            <p>Estamos organizando as opções para encontrar uma cesta adequada à sua família.</p>
+          </div>
+        ) : step < quizSteps.length ? (
           <>
             <span className="quiz-kicker">Vamos encontrar sua cesta</span>
             <h1>{current.title}</h1>
@@ -205,9 +239,7 @@ export default function QuizPage() {
             <div className="choice-list">
               {current.options.map((option) => {
                 const selected = current.multi
-                  ? (answers[current.key] as string[] | undefined)?.includes(
-                      option.value,
-                    )
+                  ? (answers[current.key] as string[] | undefined)?.includes(option.value)
                   : answers[current.key] === option.value;
 
                 return (
@@ -222,24 +254,29 @@ export default function QuizPage() {
                       <strong>{option.value}</strong>
                       <small>{option.description}</small>
                     </span>
-                    <span aria-hidden>{selected ? "✓" : "＋"}</span>
+                    <span aria-hidden>{selected ? "✓" : current.multi ? "＋" : "○"}</span>
                   </button>
                 );
               })}
             </div>
+            {current.multi && (
+              <p className="quiz-selection-count" aria-live="polite">
+                {selectedCount === 0
+                  ? "Você pode selecionar mais de uma opção."
+                  : `${selectedCount} opção(ões) selecionada(s).`}
+              </p>
+            )}
             {error && <p className="error-text" role="alert">{error}</p>}
             <div className="quiz-actions">
               <button
                 type="button"
                 className="secondary-btn"
-                onClick={() =>
-                  step === 0 ? router.push("/") : setStep((value) => value - 1)
-                }
+                onClick={() => step === 0 ? router.push("/") : setStep((value) => value - 1)}
               >
                 Voltar
               </button>
               <button type="button" className="primary-btn" onClick={next}>
-                Continuar →
+                {step === quizSteps.length - 1 ? "Continuar para o CEP →" : "Continuar →"}
               </button>
             </div>
           </>
@@ -248,8 +285,7 @@ export default function QuizPage() {
             <span className="quiz-kicker">Última etapa</span>
             <h1>Para onde enviamos sua cesta?</h1>
             <p className="quiz-sub">
-              Informe seu CEP para consultar o endereço. A disponibilidade e o
-              valor do frete serão confirmados antes do pagamento.
+              Informe seu CEP para identificar a região de entrega. O valor e o prazo do frete serão confirmados antes do pagamento.
             </p>
             <label className="mb-2 block text-sm font-bold" htmlFor="cep">
               CEP
@@ -261,15 +297,17 @@ export default function QuizPage() {
               autoComplete="postal-code"
               placeholder="00000-000"
               value={cep}
-              onChange={(event) => setCep(event.target.value)}
+              onChange={(event) => setCep(formatCep(event.target.value))}
               maxLength={9}
+              aria-describedby={error ? "cep-error" : undefined}
             />
-            {error && <p className="error-text" role="alert">{error}</p>}
+            {error && <p id="cep-error" className="error-text" role="alert">{error}</p>}
             <div className="quiz-actions">
               <button
                 type="button"
                 className="secondary-btn"
                 onClick={() => setStep((value) => value - 1)}
+                disabled={loading}
               >
                 Voltar
               </button>
@@ -279,9 +317,12 @@ export default function QuizPage() {
                 disabled={loading}
                 onClick={submitCep}
               >
-                {loading ? "Consultando..." : "Ver minha sugestão →"}
+                {loading ? "Consultando CEP..." : "Ver minha recomendação →"}
               </button>
             </div>
+            <p className="quiz-privacy-note">
+              Usaremos o CEP apenas para identificar sua região e preparar a consulta de entrega.
+            </p>
           </>
         )}
       </section>

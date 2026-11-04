@@ -10,6 +10,8 @@ type Product = {
 type BasketItem = { product_id: string; quantity: number };
 type Basket = {
   id: string; name: string; slug: string; description: string; price_cents: number;
+  category: "economic" | "traditional" | "complete";
+  supported_households: string[]; food_tags: string[];
   active: boolean; position: number; basket_items: BasketItem[];
 };
 type OrderItem = { product_name: string; sku: string | null; quantity: number; line_total_cents: number };
@@ -60,7 +62,12 @@ export default function AdminDashboard() {
   const [notice,setNotice] = useState("");
   const [error,setError] = useState("");
   const [productForm,setProductForm] = useState<ProductForm>(emptyProduct);
-  const [basketForm,setBasketForm] = useState({id:"",name:"",slug:"",description:"",price:"",active:true,items:[] as {product_id:string;quantity:number}[]});
+  const [basketForm,setBasketForm] = useState({
+    id:"",name:"",slug:"",description:"",price:"",
+    category:"traditional" as "economic"|"traditional"|"complete",
+    supported_households:[] as string[],food_tags:[] as string[],
+    active:true,items:[] as {product_id:string;quantity:number}[]
+  });
   const [questionForm,setQuestionForm] = useState({
     id:"", question_key:"", title:"", subtitle:"",
     optionsText: JSON.stringify([{value:"Opção 1",description:"Descrição da opção"},{value:"Opção 2",description:"Descrição da opção"}],null,2),
@@ -124,13 +131,19 @@ export default function AdminDashboard() {
     const payload = {
       name:basketForm.name,slug:basketForm.slug || toSlug(basketForm.name),
       description:basketForm.description,price_cents:Math.round(price*100),
+      category:basketForm.category,
+      supported_households:basketForm.supported_households,
+      food_tags:basketForm.food_tags,
       active:basketForm.active,position:0,items:basketForm.items
     };
     try {
       if (!Number.isFinite(price) || price < 0) throw new Error("Informe um preço válido.");
       if (basketForm.id) await request(`/api/admin/baskets/${basketForm.id}`,{method:"PATCH",body:JSON.stringify(payload)});
       else await request("/api/admin/baskets",{method:"POST",body:JSON.stringify(payload)});
-      setBasketForm({id:"",name:"",slug:"",description:"",price:"",active:true,items:[]});
+      setBasketForm({
+        id:"",name:"",slug:"",description:"",price:"",category:"traditional",
+        supported_households:[],food_tags:[],active:true,items:[]
+      });
       setNotice("Cesta salva."); await loadAll();
     } catch(e) { setError(e instanceof Error ? e.message : "Não foi possível salvar a cesta."); }
   }
@@ -139,6 +152,9 @@ export default function AdminDashboard() {
     setBasketForm({
       id:basket.id,name:basket.name,slug:basket.slug,description:basket.description || "",
       price:(basket.price_cents/100).toFixed(2).replace(".",","),active:basket.active,
+      category:basket.category || "traditional",
+      supported_households:basket.supported_households || [],
+      food_tags:basket.food_tags || [],
       items:(basket.basket_items || []).map(item => ({product_id:item.product_id,quantity:item.quantity}))
     });
     setTab("baskets"); window.scrollTo({top:0,behavior:"smooth"});
@@ -201,6 +217,18 @@ export default function AdminDashboard() {
     if (!window.confirm("Excluir a pergunta " + question.title + "?")) return;
     try { await request("/api/admin/quiz-questions/" + question.id,{method:"DELETE"}); setNotice("Pergunta excluída."); await loadAll(); }
     catch(e) { setError(e instanceof Error ? e.message : "Não foi possível excluir a pergunta."); }
+  }
+
+  function toggleBasketMetadata(field:"supported_households"|"food_tags", value:string) {
+    setBasketForm(previous => {
+      const values = previous[field];
+      return {
+        ...previous,
+        [field]: values.includes(value)
+          ? values.filter(item => item !== value)
+          : [...values, value],
+      };
+    });
   }
 
   function toggleBasketProduct(productId:string) {
@@ -268,12 +296,42 @@ export default function AdminDashboard() {
           <label>Slug<input required value={basketForm.slug} onChange={e=>setBasketForm({...basketForm,slug:toSlug(e.target.value)})}/></label>
           <label>Descrição<textarea rows={3} value={basketForm.description} onChange={e=>setBasketForm({...basketForm,description:e.target.value})}/></label>
           <label>Preço final (R$)<input required inputMode="decimal" placeholder="0,00" value={basketForm.price} onChange={e=>setBasketForm({...basketForm,price:e.target.value})}/></label>
+          <label>Perfil da cesta
+            <select value={basketForm.category} onChange={e=>setBasketForm({...basketForm,category:e.target.value as "economic"|"traditional"|"complete"})}>
+              <option value="economic">Econômica</option>
+              <option value="traditional">Tradicional</option>
+              <option value="complete">Completa</option>
+            </select>
+          </label>
+          <div className="product-picker">
+            <strong>Para quantas pessoas?</strong>
+            <p className="muted-copy">Marque os tamanhos de família mais adequados. Sem marcação, a cesta não terá restrição por tamanho.</p>
+            {["1 pessoa","2 pessoas","3 a 4 pessoas","5 pessoas ou mais"].map(value=>
+              <label className="inline-check" key={value}>
+                <input type="checkbox" checked={basketForm.supported_households.includes(value)} onChange={()=>toggleBasketMetadata("supported_households",value)}/>
+                {value}
+              </label>
+            )}
+          </div>
+          <div className="product-picker">
+            <strong>Grupos de alimentos atendidos</strong>
+            <p className="muted-copy">Essas marcações são usadas para cruzar a cesta com as escolhas do cliente no quiz.</p>
+            {["Arroz e feijão","Massas e molhos","Café e açúcar","Óleo e temperos","Biscoitos e complementos"].map(value=>
+              <label className="inline-check" key={value}>
+                <input type="checkbox" checked={basketForm.food_tags.includes(value)} onChange={()=>toggleBasketMetadata("food_tags",value)}/>
+                {value}
+              </label>
+            )}
+          </div>
           <label className="inline-check"><input type="checkbox" checked={basketForm.active} onChange={e=>setBasketForm({...basketForm,active:e.target.checked})}/> Publicar cesta</label>
           <div className="product-picker"><strong>Composição da cesta</strong>{products.length===0?<p className="muted-copy">Cadastre produtos primeiro.</p>:products.map(product=>{
             const selected=basketForm.items.find(item=>item.product_id===product.id);
             return <div className="picker-row" key={product.id}><label className="inline-check"><input type="checkbox" checked={Boolean(selected)} onChange={()=>toggleBasketProduct(product.id)}/><span>{product.name}</span></label>{selected&&<input className="qty-input" type="number" min="1" value={selected.quantity} onChange={e=>setBasketQuantity(product.id,Number(e.target.value))}/>}</div>;
           })}</div>
-          <div className="form-actions"><button className="primary-btn" type="submit">Salvar cesta</button>{basketForm.id&&<button className="secondary-btn" type="button" onClick={()=>setBasketForm({id:"",name:"",slug:"",description:"",price:"",active:true,items:[]})}>Cancelar edição</button>}</div>
+          <div className="form-actions"><button className="primary-btn" type="submit">Salvar cesta</button>{basketForm.id&&<button className="secondary-btn" type="button" onClick={()=>setBasketForm({
+  id:"",name:"",slug:"",description:"",price:"",category:"traditional",
+  supported_households:[],food_tags:[],active:true,items:[]
+})}>Cancelar edição</button>}</div>
         </form>
         <section className="admin-list"><h2>Cestas ({baskets.length})</h2>
           {baskets.length===0?<p className="muted-copy">Nenhuma cesta cadastrada.</p>:baskets.map(basket=><article className="admin-list-item" key={basket.id}>
