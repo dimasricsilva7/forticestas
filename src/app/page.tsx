@@ -1,46 +1,37 @@
+import Image from "next/image";
 import Link from "next/link";
+import {STARTER_BASKETS,formatBRL} from "@/lib/catalog";
 
-export default function HomePage() {
-  return (
-    <main className="page-shell">
-      <header className="topbar">
-        <Link href="/" className="brand"><span className="brand-mark">F</span> FortiCestas</Link>
-        <div className="flex items-center gap-3">
-          <Link href="/cestas" className="text-sm font-bold text-green-800">Ver cestas</Link>
-          <Link href="/quiz" className="secondary-btn">Montar minha cesta</Link>
-        </div>
-      </header>
-      <section className="hero">
-        <div>
-          <span className="eyebrow">Sua compra mais simples</span>
-          <h1>Uma cesta que combina com a <em>sua família.</em></h1>
-          <p>Conte um pouco sobre sua casa e encontre uma sugestão de cesta básica de acordo com o tamanho da família, suas preferências e seu orçamento.</p>
-          <div className="flex flex-wrap gap-3">
-            <Link href="/quiz" className="primary-btn">Encontrar minha cesta <span aria-hidden>→</span></Link>
-            <Link href="/cestas" className="secondary-btn">Ver catálogo</Link>
-          </div>
-          <div className="trust-row"><span>✓ Escolhas personalizadas</span><span>✓ Opções por orçamento</span><span>✓ Consulta de entrega por CEP</span></div>
-        </div>
-        <div className="hero-art" aria-label="Ilustração de cesta de alimentos">
-          <div className="basket">
-            <div className="basket-title"><span>Uma seleção para sua casa</span><span>🥬</span></div>
-            <div className="basket-items">
-              {["🍚","🫘","🛢️","🍝","☕","🥫","🍪","🧂","🥛"].map((food,i)=><div className="food" key={i}>{food}</div>)}
-            </div>
-            <div className="basket-foot"><span>Itens essenciais do dia a dia</span><strong>FortiCestas</strong></div>
-          </div>
-        </div>
-      </section>
-      <section className="section">
-        <h2>Comprar pode ser mais fácil.</h2>
-        <p className="section-lead">Uma experiência simples para entender o que faz sentido para a rotina da sua família.</p>
-        <div className="benefits">
-          <article className="benefit"><div className="benefit-icon">🧺</div><h3>Escolha orientada</h3><p>Responda algumas perguntas e receba uma sugestão alinhada ao que você procura.</p></article>
-          <article className="benefit"><div className="benefit-icon">💰</div><h3>Respeite seu orçamento</h3><p>Informe a faixa de valor que pretende investir antes de ver as opções.</p></article>
-          <article className="benefit"><div className="benefit-icon">🚚</div><h3>Consulte sua região</h3><p>Informe seu CEP para verificar as condições de entrega disponíveis.</p></article>
-        </div>
-      </section>
-      <footer className="footer">FortiCestas · Alimentos essenciais para o dia a dia</footer>
-    </main>
-  );
+export default function HomePage(){
+ return <main className="page-shell">
+  <header className="topbar forti-topbar">
+   <Link href="/" className="forti-brand" aria-label="FortiCestas - início"><Image src="/images/logo.svg" alt="" width={48} height={48} priority/><span><strong>FortiCestas</strong><small>Cestas básicas para sua família</small></span></Link>
+   <nav className="forti-nav" aria-label="Navegação principal"><Link href="/">Início</Link><Link href="/cestas">Catálogo</Link><Link href="/quiz">Encontre sua cesta</Link></nav>
+   <Link href="/quiz" className="header-cta">Encontrar minha cesta <span aria-hidden>→</span></Link>
+  </header>
+  <section className="forti-hero">
+   <div className="forti-hero-copy">
+    <span className="eyebrow">Mais praticidade para sua casa</span>
+    <h1>O essencial da sua despensa, <em>em uma cesta só.</em></h1>
+    <p>Escolha entre quatro opções de cestas básicas ou responda ao nosso quiz para encontrar a composição que combina com a rotina da sua família.</p>
+    <div className="forti-hero-actions"><Link href="/quiz" className="primary-btn">Descobrir minha cesta <span aria-hidden>→</span></Link><Link href="/cestas" className="secondary-btn">Ver as quatro cestas</Link></div>
+    <div className="forti-trust-row"><span><b>✓</b> Composição transparente</span><span><b>✓</b> Opções por orçamento</span><span><b>✓</b> Frete consultado por CEP</span></div>
+   </div>
+   <div className="forti-hero-image"><Image src="/images/hero.svg" alt="Ilustração de uma cesta de alimentos com arroz, feijão, massas, óleo, café e leite" fill priority sizes="(max-width: 760px) 100vw, 52vw"/><div className="hero-image-caption"><span>FortiCestas</span><small>Alimentos essenciais para o dia a dia</small></div></div>
+  </section>
+  <section className="forti-benefits" aria-label="Vantagens">
+   <div><span className="benefit-emoji">🧺</span><strong>Quatro opções</strong><small>Da básica à completa</small></div>
+   <div><span className="benefit-emoji">📋</span><strong>Você vê os itens</strong><small>Composição descrita em cada cesta</small></div>
+   <div><span className="benefit-emoji">📍</span><strong>Consulte o CEP</strong><small>Frete calculado no checkout</small></div>
+  </section>
+  <section className="section forti-catalog-section" id="cestas">
+   <div className="forti-section-heading"><div><span className="eyebrow">Catálogo FortiCestas</span><h2>Escolha a cesta ideal para sua casa.</h2><p className="section-lead">Quatro tamanhos de compra, com preços e itens apresentados antes de finalizar.</p></div><Link href="/cestas" className="text-link">Ver catálogo completo →</Link></div>
+   <div className="forti-product-grid">{STARTER_BASKETS.map((basket)=><article className="forti-product-card" key={basket.slug}>
+    <Link href={"/cestas/"+basket.slug} className="forti-product-image"><Image src={basket.image_url} alt={"Ilustração da "+basket.name} fill sizes="(max-width: 760px) 90vw, 25vw"/>{basket.highlight&&<span className="product-ribbon">{basket.highlight}</span>}</Link>
+    <div className="forti-product-body"><div className="product-topline"><span>{basket.items.length} tipos de itens</span><span>{basket.supported_households[0]}</span></div><h3>{basket.name}</h3><p>{basket.description}</p><strong className="product-price">{formatBRL(basket.price_cents)}</strong><Link href={"/cestas/"+basket.slug} className="product-link">Ver composição <span aria-hidden>→</span></Link></div>
+   </article>)}</div>
+   <div className="forti-quiz-banner"><div><span className="quiz-banner-icon">✓</span><div><strong>Não sabe qual escolher?</strong><p>Responda ao quiz e receba uma recomendação com base no orçamento e no tamanho da sua família.</p></div></div><Link href="/quiz" className="primary-btn">Fazer o quiz agora <span aria-hidden>→</span></Link></div>
+  </section>
+  <footer className="footer forti-footer"><Link href="/" className="forti-brand"><Image src="/images/logo.svg" alt="" width={38} height={38}/><span><strong>FortiCestas</strong><small>Cestas básicas para sua família</small></span></Link><p>Preços e composição sujeitos à atualização. Consulte o conteúdo da cesta e o frete antes de concluir o pedido.</p></footer>
+ </main>;
 }

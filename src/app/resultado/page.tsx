@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
+import { STARTER_BASKETS } from "@/lib/catalog";
 import { rankBaskets, type QuizAnswers } from "@/lib/recommendation";
 
 type Answers = Record<string, string | string[]>;
@@ -11,7 +13,8 @@ type Basket = {
   slug: string;
   description: string;
   price_cents: number;
-  category: "economic" | "traditional" | "complete";
+  category: "basic" | "economic" | "traditional" | "complete";
+  image_url: string | null;
   supported_households: string[];
   food_tags: string[];
   active: boolean;
@@ -23,6 +26,7 @@ function money(cents: number) {
 }
 
 const categoryLabels: Record<Basket["category"], string> = {
+  basic: "Básica",
   economic: "Econômica",
   traditional: "Tradicional",
   complete: "Completa",
@@ -159,6 +163,7 @@ export default function ResultPage() {
             <div className="recommendation-list">
               {rankedBaskets.slice(0, 3).map((basket, index) => (
                 <article className={index === 0 ? "recommendation-card recommended" : "recommendation-card"} key={basket.id}>
+                  <div className="recommendation-image"><Image src={basket.image_url || STARTER_BASKETS.find((item) => item.slug === basket.slug)?.image_url || "/images/hero.svg"} alt={"Ilustração da " + basket.name} fill sizes="(max-width: 760px) 100vw, 680px" /></div>
                   {index === 0 && <span className="recommendation-label">Mais alinhada ao seu perfil</span>}
                   <div className="recommendation-card-heading">
                     <div>

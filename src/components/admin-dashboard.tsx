@@ -10,7 +10,7 @@ type Product = {
 type BasketItem = { product_id: string; quantity: number };
 type Basket = {
   id: string; name: string; slug: string; description: string; price_cents: number;
-  category: "economic" | "traditional" | "complete";
+  category: "basic" | "economic" | "traditional" | "complete";
   supported_households: string[]; food_tags: string[];
   active: boolean; position: number; basket_items: BasketItem[];
 };
@@ -64,7 +64,7 @@ export default function AdminDashboard() {
   const [productForm,setProductForm] = useState<ProductForm>(emptyProduct);
   const [basketForm,setBasketForm] = useState({
     id:"",name:"",slug:"",description:"",price:"",
-    category:"traditional" as "economic"|"traditional"|"complete",
+    category:"traditional" as "basic"|"economic"|"traditional"|"complete",
     supported_households:[] as string[],food_tags:[] as string[],
     active:true,items:[] as {product_id:string;quantity:number}[]
   });
@@ -298,6 +298,7 @@ export default function AdminDashboard() {
           <label>Preço final (R$)<input required inputMode="decimal" placeholder="0,00" value={basketForm.price} onChange={e=>setBasketForm({...basketForm,price:e.target.value})}/></label>
           <label>Perfil da cesta
             <select value={basketForm.category} onChange={e=>setBasketForm({...basketForm,category:e.target.value as "economic"|"traditional"|"complete"})}>
+              <option value="basic">Básica</option>
               <option value="economic">Econômica</option>
               <option value="traditional">Tradicional</option>
               <option value="complete">Completa</option>

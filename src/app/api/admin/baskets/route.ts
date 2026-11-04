@@ -9,7 +9,7 @@ const basketSchema = z.object({
   slug: z.string().trim().min(2).max(140).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
   description: z.string().max(2000).default(""),
   price_cents: z.number().int().min(0),
-  category: z.enum(["economic", "traditional", "complete"]).default("traditional"),
+  category: z.enum(["basic", "economic", "traditional", "complete"]).default("traditional"),
   supported_households: z.array(z.string().trim().min(1).max(80)).default([]),
   food_tags: z.array(z.string().trim().min(1).max(100)).default([]),
   active: z.boolean().default(true),

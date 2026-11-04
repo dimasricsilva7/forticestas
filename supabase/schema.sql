@@ -470,10 +470,11 @@ grant execute on function public.release_forticestas_order_inventory(uuid) to se
 alter table public.baskets
   add column if not exists category text not null default 'traditional',
   add column if not exists supported_households text[] not null default '{}',
-  add column if not exists food_tags text[] not null default '{}';
+  add column if not exists food_tags text[] not null default '{}',
+  add column if not exists image_url text;
 
 alter table public.baskets
   drop constraint if exists baskets_category_check;
 alter table public.baskets
   add constraint baskets_category_check
-  check (category in ('economic','traditional','complete'));
+  check (category in ('basic','economic','traditional','complete'));

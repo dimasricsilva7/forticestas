@@ -15,6 +15,13 @@ type QuizStep = {
 };
 type Answers = Record<string, string | string[]>;
 
+const budgetOptions: QuizOption[] = [
+  { value: "Até R$ 100", description: "A opção de entrada" },
+  { value: "R$ 101 a R$ 175", description: "Economia com mais variedade" },
+  { value: "R$ 176 a R$ 250", description: "Uma cesta mais reforçada" },
+  { value: "Acima de R$ 250", description: "Quero comparar as opções mais completas" },
+];
+
 const fallbackSteps: QuizStep[] = [
   {
     key: "household",
@@ -55,10 +62,10 @@ const fallbackSteps: QuizStep[] = [
     title: "Qual faixa de orçamento você planeja?",
     subtitle: "Vamos priorizar cestas dentro do valor que pretende investir.",
     options: [
-      { value: "Até R$ 150", description: "Uma opção econômica" },
-      { value: "R$ 151 a R$ 250", description: "Equilíbrio entre preço e variedade" },
-      { value: "R$ 251 a R$ 350", description: "Uma cesta mais completa" },
-      { value: "Acima de R$ 350", description: "Maior variedade de itens" },
+      { value: "Até R$ 100", description: "A opção de entrada" },
+      { value: "R$ 101 a R$ 175", description: "Economia com mais variedade" },
+      { value: "R$ 176 a R$ 250", description: "Uma cesta mais reforçada" },
+      { value: "Acima de R$ 250", description: "Quero comparar as opções mais completas" },
     ],
   },
   {
@@ -76,9 +83,10 @@ const fallbackSteps: QuizStep[] = [
     title: "Qual tipo de cesta prefere?",
     subtitle: "Escolha o perfil de cesta que mais combina com o que procura.",
     options: [
-      { value: "Tradicional", description: "Alimentos básicos para o dia a dia" },
-      { value: "Econômica", description: "Foco nos itens essenciais" },
-      { value: "Completa", description: "Mais variedade de produtos" },
+      { value: "Básica", description: "Só o essencial para a despensa" },
+      { value: "Econômica", description: "Mais itens com foco no orçamento" },
+      { value: "Tradicional", description: "Equilíbrio entre quantidade e variedade" },
+      { value: "Completa", description: "Nossa seleção mais robusta" },
     ],
   },
 ];
@@ -121,7 +129,11 @@ export default function QuizPage() {
             key: question.question_key,
             title: question.title,
             subtitle: question.subtitle || "",
-            options: question.options,
+            options: question.question_key === "budget"
+              ? budgetOptions
+              : question.question_key === "basket"
+                ? [...question.options.filter((option) => option.value !== "Básica"), { value: "Básica", description: "Só o essencial para a despensa" }]
+                : question.options,
             multi: Boolean(question.multi),
             required: question.required !== false,
           }));
