@@ -1,69 +1,56 @@
 # FortiCestas
 
-Loja de cestas básicas com recomendação por quiz, catálogo administrável e estrutura para checkout Pix.
+Loja de cestas básicas com quatro composições iniciais, quiz de recomendação, painel administrativo, checkout Pix e frete grátis.
 
-## Stack
-- Next.js 15.5 + React 19 + TypeScript
-- Tailwind CSS 4
-- Supabase Auth + Postgres
-- Vercel com deploy automático conectado ao GitHub
+## Armazenamento
 
-## Rodar localmente
-```bash
-npm install
-cp .env.example .env.local
-npm run dev
-```
-Abra http://localhost:3000.
+O catálogo, os produtos, as perguntas do quiz e os pedidos são salvos em um arquivo JSON no disco do servidor:
 
-## Rotas
-- `/` — página inicial
-- `/quiz` — questionário interativo editável, com múltipla escolha e consulta de CEP via ViaCEP
-- `/resultado` — resumo inicial das respostas
-- `/cestas` — catálogo de cestas ativas no Supabase
-- `/cestas/[slug]` — composição e preço de uma cesta
-- `/admin/login` — acesso administrativo
-- `/admin` — painel protegido para produtos, cestas, pedidos e métricas
+\`FORTI_STORAGE_DIR/forticestas.json\`
 
-## Supabase — configuração obrigatória
-1. Crie um projeto Supabase.
-2. Em SQL Editor, execute o arquivo `supabase/schema.sql` inteiro.
-3. Em Authentication > Users, crie seu usuário administrador com e-mail e senha.
-4. Copie o UUID desse usuário e execute no SQL Editor:
-   ```sql
-   insert into public.admin_users (user_id)
-   values ('UUID_DO_USUARIO_CRIADO_NO_AUTH');
-   ```
-5. Configure na Vercel (Settings > Environment Variables) e em `.env.local`:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY` (somente servidor; nunca use prefixo NEXT_PUBLIC_)
-6. Faça redeploy depois de cadastrar as variáveis.
+Se \`FORTI_STORAGE_DIR\` não for informado, o aplicativo usa \`./data/forticestas.json\`. O arquivo é criado na primeira alteração salva pelo painel ou pelo checkout. Faça backup periódico desse arquivo.
 
-As rotas administrativas validam sessão Supabase Auth e associação à tabela `admin_users`. O acesso de leitura do usuário autenticado à própria linha é limitado por RLS. Operações administrativas usam service-role exclusivamente no servidor.
+**Hospedagem obrigatória:** use um servidor Node.js com diretório persistente e permissão de escrita (por exemplo, VPS ou hospedagem própria). A Vercel usa funções serverless e não mantém gravações feitas no disco local entre execuções; este modo de armazenamento não é compatível com a Vercel para operações reais. Não publique a loja com pedidos habilitados nesse ambiente, pois os pedidos não ficariam persistidos.
 
-## Checkout, pagamento e frete
-- A página por cesta é `/checkout/[slug]`; o endpoint do servidor é `POST /api/checkout`.
-- As perguntas do quiz são editáveis no painel. Mantenha as chaves `household`, `goal`, `foods`, `budget` e `basket` para preservar os critérios correspondentes da recomendação automática. A frequência de compra é registrada no perfil e pode ser usada pela equipe para campanhas futuras.
-- Para cada cesta, cadastre no painel o perfil (econômica, tradicional ou completa), os tamanhos de família atendidos e os grupos de alimentos. O resultado compara essas informações com as respostas e prioriza as cestas mais compatíveis, respeitando o orçamento.
-- O checkout consulta a cesta, valida e reserva o estoque atomicamente no banco, salva o retrato dos produtos no pedido, consulta o CEP no ViaCEP e exige uma cotação do adaptador de frete antes de criar a cobrança.
-- O estoque é reservado quando o pedido é criado, baixado definitivamente após o webhook `transaction.paid` e liberado quando o Pix expira ou falha. Reservas abandonadas vencem automaticamente após 65 minutos na próxima tentativa de checkout.
-- Cadastre o peso real (gramas), largura, altura e comprimento (centímetros) de cada produto no painel administrativo. O checkout bloqueia o pedido quando algum dado logístico obrigatório estiver ausente.
-- O adaptador BravoPay em `src/lib/integrations/bravopay.ts` implementa criação de cobrança PIX na API v1, header `Idempotency-Key` e validação HMAC-SHA256 do webhook.
-- O endpoint de recebimento é `POST /api/webhooks/bravopay`. Cadastre a URL pública completa no Dashboard BravoPay > Integrações e copie o segredo `whsec_...` para `BRAVOPAY_WEBHOOK_SECRET`.
-- Configure `BRAVOPAY_API_KEY` com a chave de cobranças `bp_live_...`. Ambas são variáveis privadas de servidor, nunca prefixadas com `NEXT_PUBLIC_`.
-- Os eventos são deduplicados pelo ID estável. O pedido só muda para pago após webhook assinado `transaction.paid`, conferência do ID da transação e conferência do valor.
-- Consulte a [documentação oficial BravoPay](https://bravopay.club/docs) para ver endpoint, escopos da chave e cadastrar o webhook.
-- O adaptador de frete usa Melhor Envio em `src/lib/integrations/melhor-envio.ts`, com OAuth2, renovação automática e tokens armazenados criptografados no banco.
-- Cadastre o aplicativo em Melhor Envio > Integrações > Área Dev. Use o callback exato `https://SEU-DOMINIO/api/admin/shipping/melhor-envio/callback` e solicite apenas o scope `shipping-calculate`.
-- Configure na Vercel: `MELHORENVIO_CLIENT_ID`, `MELHORENVIO_CLIENT_SECRET`, `MELHORENVIO_REDIRECT_URI`, `MELHORENVIO_USER_AGENT_EMAIL`, `MELHORENVIO_TOKEN_ENCRYPTION_KEY`, `SHIPPING_ORIGIN_CEP`, `MELHORENVIO_ENV` e `SHIPPING_PROVIDER=melhor_envio`.
-- Gere a chave de criptografia com `openssl rand -hex 32`. Ela deve permanecer secreta e estável; trocar a chave sem reautorizar a integração impede a leitura dos tokens já armazenados.
-- Defina `MELHORENVIO_ENV=sandbox` para homologar. Depois, crie/configure o aplicativo de produção, ajuste o callback cadastrado e troque para `production` somente após testar a autorização e as cotações.
-- Em seguida, entre em `/admin` e clique em **Conectar Melhor Envio**. A conta autorizada é a conta remetente da loja; o CEP de origem deve ser o endereço real de expedição.
-- O checkout envia medidas em cm, peso em kg e valor segurado unitário por produto ao endpoint de cotação. Usa `custom_price` e `custom_delivery_time` quando retornados pela API. A compra de etiquetas não está habilitada.
-- Consulte a [documentação oficial de autorização](https://docs.melhorenvio.com.br/reference/fluxo-de-autoriza%C3%A7%C3%A3o), [solicitação/renovação de token](https://docs.melhorenvio.com.br/reference/solicitacao-do-token) e [cálculo de fretes](https://docs.melhorenvio.com.br/reference/calculo-de-fretes-por-produtos).
-- Não aceite preço ou status de frete enviado pelo navegador. O serviço, preço e prazo devem vir da API do transportador no servidor.
-- O status `paid` nunca deve ser atribuído por ação do cliente ou pela página de retorno do checkout.
+## Configuração
 
-## Importante
-O projeto está em etapa de MVP. O catálogo e o painel dependem da configuração do Supabase. Ainda não está pronto para receber pagamentos ou expedir pedidos. Não publique credenciais em commits, tickets ou mensagens.
+Requisitos: Node.js 22.x.
+
+1. Instale as dependências com \`npm install\`.
+2. Copie \`.env.example\` para \`.env.local\`.
+3. Configure:
+   - \`FORTI_STORAGE_DIR\`: diretório persistente gravável pelo processo Node.
+   - \`ADMIN_EMAIL\`, \`ADMIN_PASSWORD\` e \`ADMIN_SESSION_SECRET\`: credenciais do painel. O segredo precisa ter pelo menos 32 caracteres.
+   - \`BRAVOPAY_API_KEY\` e \`BRAVOPAY_WEBHOOK_SECRET\`: credenciais do Pix.
+   - \`NEXT_PUBLIC_SITE_URL\`: endereço público com HTTPS.
+4. Garanta que o usuário do processo Node tenha permissão de escrita no diretório de armazenamento.
+5. Execute \`npm run build\` e inicie com \`npm run start\` sob PM2 ou systemd.
+
+O login administrativo fica em \`/admin/login\`.
+
+## Pix e frete
+
+O checkout cria uma cobrança Pix dinâmica pela BravoPay. Configure no painel da BravoPay o webhook:
+
+\`https://SEU-DOMINIO/api/webhooks/bravopay\`
+
+O endpoint valida a assinatura HMAC antes de mudar o status de um pedido. Pagamentos confirmados, expirados, reembolsados e chargebacks atualizam o arquivo local.
+
+O frete está definido como grátis: o total enviado à BravoPay é igual ao preço da cesta. O CEP e o endereço continuam sendo solicitados para registrar o destino da entrega.
+
+## Catálogo inicial
+
+| Cesta | Preço sugerido |
+|---|---:|
+| Básica | R$ 89,90 |
+| Econômica | R$ 159,90 |
+| Tradicional | R$ 239,90 |
+| Completa | R$ 349,90 |
+
+Os preços e a composição são sugestões iniciais, não cotações de fornecedores. Valide custo dos alimentos, embalagem, operação e margem antes de aceitar pedidos.
+
+O estoque fica disponível apenas no painel interno e não é exibido nas páginas públicas.
+
+## Desenvolvimento
+
+\`npm run dev\` inicia o ambiente local. As primeiras leituras usam o catálogo inicial; a primeira gravação cria \`data/forticestas.json\`.

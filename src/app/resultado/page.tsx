@@ -120,7 +120,7 @@ export default function ResultPage() {
   return (
     <main className="quiz-wrap">
       <section className="quiz-card result-card">
-        <Link href="/" className="brand"><span className="brand-mark">F</span> FortiCestas</Link>
+        <Link href="/" className="forti-brand"><Image src="/images/logo.svg" alt="" width={38} height={38}/><span><strong>FortiCestas</strong><small>Cestas básicas para sua família</small></span></Link>
         <div className="mt-8">
           <span className="quiz-kicker">Perfil concluído</span>
           <h1>Encontramos opções para sua família.</h1>

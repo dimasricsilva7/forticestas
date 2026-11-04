@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { signInAdmin } from "./actions";
 
 const messages: Record<string, string> = {
@@ -20,7 +21,7 @@ export default async function AdminLoginPage({
   return (
     <main className="quiz-wrap">
       <section className="quiz-card">
-        <Link href="/" className="brand"><span className="brand-mark">F</span> FortiCestas</Link>
+        <Link href="/" className="forti-brand"><Image src="/images/logo.svg" alt="" width={38} height={38}/><span><strong>FortiCestas</strong><small>Cestas básicas para sua família</small></span></Link>
         <div className="mt-8">
           <span className="quiz-kicker">Acesso restrito</span>
           <h1>Entrar no painel</h1>

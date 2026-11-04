@@ -1,38 +1,13 @@
 "use server";
-
-import { createServerSupabase } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
-
-export async function signInAdmin(formData: FormData) {
-  const email = String(formData.get("email") || "").trim().toLowerCase();
-  const password = String(formData.get("password") || "");
-  if (!email || !password) redirect("/admin/login?error=preencha-os-campos");
-
-  const supabase = await createServerSupabase();
-  if (!supabase) redirect("/admin/login?error=supabase-nao-configurado");
-
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) redirect("/admin/login?error=credenciais-invalidas");
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/admin/login?error=nao-foi-possivel-validar");
-
-  const { data: admin } = await supabase
-    .from("admin_users")
-    .select("user_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (!admin) {
-    await supabase.auth.signOut();
-    redirect("/admin/login?error=usuario-sem-permissao");
-  }
-
-  redirect("/admin");
+import {cookies} from "next/headers";
+import {redirect} from "next/navigation";
+import {COOKIE_NAME,SESSION_SECONDS,createAdminToken,validateAdminCredentials} from "@/lib/admin-auth";
+export async function signInAdmin(formData:FormData){
+ const email=String(formData.get("email")||"").trim().toLowerCase(),password=String(formData.get("password")||"");
+ if(!email||!password)redirect("/admin/login?error=preencha-os-campos");
+ if(!process.env.ADMIN_EMAIL||!process.env.ADMIN_PASSWORD||!process.env.ADMIN_SESSION_SECRET)redirect("/admin/login?error=admin-nao-configurado");
+ if(!validateAdminCredentials(email,password))redirect("/admin/login?error=credenciais-invalidas");
+ const store=await cookies();store.set(COOKIE_NAME,createAdminToken(email),{httpOnly:true,secure:process.env.NODE_ENV==="production",sameSite:"strict",path:"/",maxAge:SESSION_SECONDS});
+ redirect("/admin");
 }
-
-export async function signOutAdmin() {
-  const supabase = await createServerSupabase();
-  if (supabase) await supabase.auth.signOut();
-  redirect("/admin/login");
-}
+export async function signOutAdmin(){const store=await cookies();store.delete(COOKIE_NAME);redirect("/admin/login");}

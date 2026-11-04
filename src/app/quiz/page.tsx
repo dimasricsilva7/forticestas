@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 type QuizOption = { value: string; description: string };
@@ -233,8 +234,9 @@ export default function QuizPage() {
     <main className="quiz-wrap">
       <section className="quiz-card">
         <header className="flex items-center justify-between gap-3">
-          <Link href="/" className="brand">
-            <span className="brand-mark">F</span> FortiCestas
+          <Link href="/" className="forti-brand">
+            <Image src="/images/logo.svg" alt="" width={38} height={38} />
+            <span><strong>FortiCestas</strong><small>Cestas básicas para sua família</small></span>
           </Link>
           <span className="text-xs text-gray-500">
             {configLoading ? "Preparando quiz..." : `Etapa ${Math.min(step + 1, quizSteps.length + 1)} de ${quizSteps.length + 1}`}

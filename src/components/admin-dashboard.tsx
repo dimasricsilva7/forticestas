@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import AdminShippingCard from "@/components/admin-shipping-card";
 
 type Product = {
   id: string; name: string; slug: string; description: string; sku: string | null;
@@ -265,8 +264,7 @@ export default function AdminDashboard() {
           <article className="stat-card"><span>Pedidos recebidos</span><strong>{overview.orders}</strong></article>
           <article className="stat-card"><span>Vendas confirmadas</span><strong>{currency(overview.paidRevenueCents)}</strong><small>{overview.paidOrders} pagamentos confirmados</small></article>
         </div>
-        <div className="detail-panel"><h2>Próximas configurações</h2><p>Cadastre produtos e monte suas cestas. Para receber pagamentos, configure o webhook do BravoPay e conecte o serviço de frete. Nenhum pedido será marcado como pago sem confirmação autenticada.</p></div>
-        <AdminShippingCard />
+        <div className="detail-panel"><h2>Operação da loja</h2><p>Catálogo e pedidos salvos no arquivo local do servidor. O frete está configurado como grátis e as cobranças são geradas via Pix pela BravoPay. Estoque é usado apenas internamente e não aparece para os clientes.</p></div>
       </>}
 
       {!loading && tab==="products" && <div className="admin-columns">

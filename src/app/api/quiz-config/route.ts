@@ -1,18 +1,7 @@
-import { NextResponse } from "next/server";
-import { createPublicSupabase } from "@/lib/supabase/server";
-
-export const revalidate = 60;
-
-export async function GET() {
-  const db = createPublicSupabase();
-  if (!db) return NextResponse.json({ questions: [] });
-
-  const { data, error } = await db
-    .from("quiz_questions")
-    .select("question_key, title, subtitle, options, multi, required, position")
-    .eq("active", true)
-    .order("position", { ascending: true });
-
-  if (error) return NextResponse.json({ questions: [], error: "Não foi possível carregar as perguntas." }, { status: 500 });
-  return NextResponse.json({ questions: data || [] });
+import {NextResponse} from "next/server";
+import {readLocalStore} from "@/lib/local-store";
+export const dynamic="force-dynamic";
+export async function GET(){
+ try{const store=await readLocalStore();return NextResponse.json({questions:store.quiz_questions.filter((item)=>item.active).sort((a,b)=>a.position-b.position)});}
+ catch{return NextResponse.json({questions:[]});}
 }
