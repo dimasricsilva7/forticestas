@@ -102,14 +102,29 @@ export default function QuizPage() {
     let active = true;
     fetch("/api/quiz-config", { cache: "no-store", signal: AbortSignal.timeout(5000) })
       .then((response) => response.ok ? response.json() : Promise.reject())
-      .then((data: { questions?: QuizStep[] }) => {
-        const configured = (data.questions || [])
+      .then((data: { questions?: Array<{
+        question_key: string;
+        title: string;
+        subtitle: string;
+        options: QuizOption[];
+        multi?: boolean;
+        required?: boolean;
+      }> }) => {
+        const configured: QuizStep[] = (data.questions || [])
           .filter((question) =>
-            typeof question.key === "string" &&
+            typeof question.question_key === "string" &&
             typeof question.title === "string" &&
             Array.isArray(question.options) &&
             question.options.length >= 2,
-          );
+          )
+          .map((question) => ({
+            key: question.question_key,
+            title: question.title,
+            subtitle: question.subtitle || "",
+            options: question.options,
+            multi: Boolean(question.multi),
+            required: question.required !== false,
+          }));
         if (active && configured.length) {
           setQuizSteps(configured);
         }

@@ -86,7 +86,6 @@ export default function ResultPage() {
     ),
     [baskets, quizAnswers],
   );
-  const recommendationIds = new Set(ranked.map((item) => item.basket.id));
   const rankedBaskets = ranked.map((item) => ({
     ...baskets.find((basket) => basket.id === item.basket.id)!,
     score: item.score,
