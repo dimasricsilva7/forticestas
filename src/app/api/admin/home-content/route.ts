@@ -16,7 +16,7 @@ export async function PUT(request:NextRequest){
  if(!auth.ok)return NextResponse.json({error:auth.message},{status:auth.status});
  const body=await request.json().catch(()=>null);
  if(!body||typeof body!=="object"||Array.isArray(body))return NextResponse.json({error:"Conteúdo inválido."},{status:400});
- const content={...DEFAULT_HOME_CONTENT};
+ const content:Record<keyof typeof DEFAULT_HOME_CONTENT,string>={...DEFAULT_HOME_CONTENT};
  for(const key of Object.keys(DEFAULT_HOME_CONTENT) as (keyof typeof DEFAULT_HOME_CONTENT)[]){
   const value=(body as Record<string,unknown>)[key];
   if(typeof value!=="string"||value.length>2000)return NextResponse.json({error:"Confira os campos do conteúdo. Cada campo deve ser texto com até 2.000 caracteres."},{status:400});
