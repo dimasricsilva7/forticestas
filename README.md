@@ -2,102 +2,76 @@
 
 Loja de cestas básicas com catálogo, quiz de recomendação, painel administrativo, checkout Pix pela BravoPay e frete grátis.
 
-## Hospedagem de produção
+## Hospedagem na Vercel
 
-A aplicação persiste catálogo, conteúdo da página, produtos, perguntas, pedidos e imagens em arquivos no disco. Ela precisa de um servidor Node.js com armazenamento persistente e deve rodar em **um único processo/contêiner**. Não use Vercel Serverless para receber pedidos com esta implementação: o disco das funções não é persistente e a aplicação recusa gravações nesse ambiente.
+A aplicação foi preparada para funcionar em Vercel Functions com **Vercel Blob** como armazenamento permanente e compartilhado. Não exige VPS, Docker ou acesso SSH.
 
-Foi incluído um setup Docker para VPS.
+O projeto usa dois tipos de conteúdo no mesmo armazenamento Vercel Blob, na região de São Paulo:
 
-### Deploy em VPS com Docker
+- **Dados privados:** catálogo, produtos, cestas, conteúdo editável, perguntas do quiz, pedidos, estado de pagamentos e eventos processados são salvos em `data/forticestas.json`, com acesso privado.
+- **Imagens:** uploads feitos pelo painel são salvos em `media/` no Blob privado. A rota pública `/api/media/[filename]` entrega somente os arquivos de imagem para que todos os visitantes vejam as fotos, sem expor os dados dos pedidos.
 
-Requisitos: Linux com Docker Engine e Docker Compose Plugin instalados; domínio apontado para o IP do servidor; proxy reverso HTTPS (Nginx ou Caddy).
+As gravações usam ETag/controle de concorrência para reduzir o risco de sobrescrever alterações simultâneas entre instâncias serverless. O armazenamento local em disco continua disponível apenas no desenvolvimento local/Docker; na Vercel, o app usa Blob e não tenta gravar no disco temporário da função.
 
-1. Clone o repositório e entre na pasta:
+### Configuração do projeto
 
-   ```bash
-   git clone https://github.com/dimasricsilva7/forticestas.git
-   cd forticestas
-   git checkout main
-   ```
+O armazenamento Blob `forticestas-data-media` já foi criado e conectado a este projeto Vercel. A variável `BLOB_READ_WRITE_TOKEN` é gerenciada pela Vercel e não precisa ser copiada para o código nem exposta no navegador.
 
-2. Crie o arquivo privado de variáveis:
+No painel Vercel, abra **forticestas → Settings → Environment Variables** e configure os seguintes valores para **Production** (e Preview, caso vá testar em preview):
 
-   ```bash
-   cp .env.production.example .env
-   nano .env
-   ```
+| Variável | Valor |
+| --- | --- |
+| `NEXT_PUBLIC_SITE_URL` | URL pública da loja, por exemplo `https://forticestas-dimasricsilva7s-projects.vercel.app` |
+| `ADMIN_EMAIL` | E-mail que será usado para entrar no admin |
+| `ADMIN_PASSWORD` | Senha forte e exclusiva do admin |
+| `ADMIN_SESSION_SECRET` | Segredo aleatório com pelo menos 32 caracteres |
+| `BRAVOPAY_API_KEY` | Chave privada da API BravoPay |
+| `BRAVOPAY_WEBHOOK_SECRET` | Segredo de assinatura do webhook BravoPay |
 
-3. Configure `NEXT_PUBLIC_SITE_URL` com o domínio final, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET`, `BRAVOPAY_API_KEY` e `BRAVOPAY_WEBHOOK_SECRET`. Gere um segredo de sessão com:
+Para gerar `ADMIN_SESSION_SECRET`, execute localmente `openssl rand -base64 48` e cole o resultado diretamente no painel da Vercel. Não publique essas credenciais no GitHub nem as inclua em variáveis iniciadas por `NEXT_PUBLIC_`.
 
-   ```bash
-   openssl rand -base64 48
-   ```
+**Não crie manualmente nem sobrescreva `BLOB_READ_WRITE_TOKEN`**: a conexão do Blob já provisionou essa variável para o projeto. Depois de cadastrar ou alterar as variáveis, faça um novo deploy/redeploy de Production para que as funções usem os valores.
 
-   Use uma senha administrativa forte e exclusiva. Nunca comite o arquivo `.env`.
+### Inicialização e validação
 
-4. Construa e inicie o serviço:
+Depois que a primeira versão for publicada, acesse `/api/health`. A rota inicializa o arquivo de dados no Blob na primeira execução e retorna `storage: "vercel-blob"` quando a conexão está correta.
 
-   ```bash
-   docker compose up -d --build
-   docker compose ps
-   ```
+Rotas úteis:
 
-5. Configure o proxy reverso para encaminhar HTTPS na porta 443 para `127.0.0.1:3000`. O serviço de aplicação escuta na porta 3000 e possui health check em `/api/health`.
+- Loja: `/`
+- Login administrativo: `/admin/login`
+- Catálogo público: `/api/catalog`
+- Configuração pública do quiz: `/api/quiz-config`
+- Health check: `/api/health`
 
-6. No painel BravoPay, cadastre o webhook `https://SEU-DOMINIO/api/webhooks/bravopay`. Faça uma cobrança real de baixo valor e confirme o evento recebido antes de aceitar pedidos reais.
+### Configurar a BravoPay
 
-O volume Docker `forticestas_data` guarda `forticestas.json` e a pasta `uploads`; ele sobrevive a recriações do contêiner. Não remova esse volume ao atualizar a imagem.
+No painel da BravoPay, cadastre este webhook:
 
-### Backup
-
-Execute periodicamente:
-
-```bash
-sh scripts/backup-data.sh
+```text
+https://SEU-DOMINIO/api/webhooks/bravopay
 ```
 
-O arquivo de backup será salvo em `backups/`. Copie esses arquivos para outro destino seguro. Para restaurar, pare o serviço, extraia o backup no volume `forticestas_data` e inicie novamente.
-
-### Deploy manual pelo GitHub Actions
-
-Depois do primeiro bootstrap do VPS descrito acima, é possível publicar atualizações sem compartilhar a chave SSH no chat. Em **GitHub → Settings → Secrets and variables → Actions**, crie:
-
-- `VPS_HOST`: IP ou hostname SSH do VPS.
-- `VPS_USER`: usuário SSH do servidor.
-- `VPS_SSH_KEY`: chave privada SSH do runner.
-- `VPS_SSH_KNOWN_HOSTS`: linha de host key do servidor, obtida previamente com `ssh-keyscan -H SEU_HOST`.
-- `VPS_SSH_PORT`: opcional; padrão 22.
-
-A chave pública correspondente precisa estar no `~/.ssh/authorized_keys` do usuário do VPS. Esse usuário deve poder executar Docker e Docker Compose sem prompt interativo. Não envie nem comite a chave privada.
-
-Depois, execute **GitHub → Actions → Deploy FortiCestas to VPS → Run workflow**. O fluxo verifica a conexão SSH, faz backup do volume de dados quando a aplicação já está em execução, atualiza o código de `main`, reconstrói o contêiner e valida `/api/health`. A publicação é manual, não automática.
-
-O arquivo privado `.env` deve estar previamente configurado em `$HOME/forticestas` no servidor. O workflow não cria nem sobrescreve credenciais.
-
-
-### Persistência e concorrência
-
-O armazenamento JSON usa uma fila de escrita dentro do processo Node. Por isso, rode exatamente uma instância da aplicação e não habilite cluster/replicas múltiplas. Para escalar horizontalmente, será necessário migrar para um banco de dados transacional.
+A rota valida a assinatura antes de atualizar o status do pedido. Após cadastrar as credenciais no Vercel e o webhook no provedor, faça uma cobrança de teste de baixo valor e confira se o pedido muda para pago no admin antes de abrir vendas reais.
 
 ## Painel administrativo
 
-Acesse `/admin/login` com o e-mail e a senha configurados no arquivo privado `.env`. O painel inclui:
+O painel fica em `/admin/login`. As credenciais são exatamente as configuradas nas variáveis `ADMIN_EMAIL` e `ADMIN_PASSWORD` da Vercel.
 
-- Edição de conteúdo nas páginas públicas: home, catálogo, detalhe da cesta, quiz, resultado, checkout, identidade, títulos, textos, imagens, botões, links, benefícios e rodapé.
-- Edição de imagens por URL HTTPS ou upload de JPG, PNG, WEBP, AVIF e GIF (até 8 MB).
-- Gerenciamento de produtos, cestas, composição, perguntas do quiz e pedidos.
-- Imagens enviadas pelo painel são gravadas no volume persistente do servidor.
+O editor inclui conteúdo de home, catálogo, detalhe da cesta, quiz, resultado, checkout, identidade visual, textos, títulos, imagens, botões, links, benefícios e rodapé. Também permite gerenciar produtos, cestas, composição, perguntas e pedidos.
+
+Os uploads aceitam JPG, PNG, WEBP, AVIF e GIF com até 8 MB. As imagens ficam persistidas no Blob e são servidas por uma URL do próprio site, então não dependem do disco temporário da função e aparecem para todos os usuários.
 
 ## Pix e frete
 
-O checkout cria cobranças Pix dinâmicas pela BravoPay. As credenciais são exclusivamente server-side. O webhook valida a assinatura antes de atualizar o status de pagamento.
+O checkout cria cobranças Pix dinâmicas pela BravoPay. As chaves ficam exclusivamente no servidor. O webhook valida a assinatura antes de atualizar o status do pagamento.
 
-O frete está configurado como grátis: o total cobrado é igual ao preço da cesta. O lojista deve validar a cobertura, prazos e custo real da entrega antes de receber pedidos.
+O frete está configurado como grátis: o total cobrado é igual ao preço da cesta. O lojista deve validar cobertura, prazos e custo real da entrega antes de receber pedidos.
 
 ## Catálogo inicial
 
 | Cesta | Preço sugerido |
-|---|---:|
+| --- | ---: |
 | Básica | R$ 89,90 |
 | Econômica | R$ 159,90 |
 | Tradicional | R$ 239,90 |
@@ -105,7 +79,7 @@ O frete está configurado como grátis: o total cobrado é igual ao preço da ce
 
 Preços e composições são sugestões iniciais, não cotações de fornecedores. Valide custo dos alimentos, embalagem, operação, margem e prazos de entrega antes da abertura da loja.
 
-## Desenvolvimento
+## Desenvolvimento local
 
 Requisitos: Node.js 22.x.
 
@@ -114,4 +88,11 @@ npm install
 npm run dev
 ```
 
-O arquivo `data/forticestas.json` é criado na primeira gravação. Use `npm run lint` e `npm run build` antes de publicar alterações.
+Sem `BLOB_READ_WRITE_TOKEN`, o desenvolvimento local usa arquivos em `data/forticestas.json` e `data/uploads`. Para testar a integração com Blob localmente, use um token da Vercel em um arquivo `.env.local` privado e nunca o envie ao GitHub.
+
+Antes de enviar alterações, execute:
+
+```bash
+npm run lint
+npm run build
+```
