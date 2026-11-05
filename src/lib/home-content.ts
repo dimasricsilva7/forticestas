@@ -80,6 +80,7 @@ export const DEFAULT_HOME_CONTENT = {
   result_loading_description: "Comparando seu perfil com as cestas disponíveis no catálogo.",
   result_recommended_label: "Mais alinhada ao seu perfil",
   result_item_button: "Ver composição da cesta",
+  result_failed_title: "Não foi possível carregar as cestas agora.",
   result_empty_title: "Estamos preparando as primeiras cestas.",
   result_empty_description: "Seu perfil foi concluído, mas ainda não há cestas publicadas no catálogo. Volte em breve para ver as opções.",
   result_address_title: "Região informada",
