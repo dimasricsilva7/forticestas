@@ -163,7 +163,7 @@ export default function ResultPage() {
             <div className="recommendation-list">
               {rankedBaskets.slice(0, 3).map((basket, index) => (
                 <article className={index === 0 ? "recommendation-card recommended" : "recommendation-card"} key={basket.id}>
-                  <div className="recommendation-image"><Image src={basket.image_url || STARTER_BASKETS.find((item) => item.slug === basket.slug)?.image_url || "/images/hero.svg"} alt={"Ilustração da " + basket.name} fill sizes="(max-width: 760px) 100vw, 680px" /></div>
+                  <div className="recommendation-image"><Image src={basket.image_url || STARTER_BASKETS.find((item) => item.slug === basket.slug)?.image_url || "/images/hero.svg"} alt={"Ilustração da " + basket.name} fill unoptimized sizes="(max-width: 760px) 100vw, 680px" /></div>
                   {index === 0 && <span className="recommendation-label">Mais alinhada ao seu perfil</span>}
                   <div className="recommendation-card-heading">
                     <div>
