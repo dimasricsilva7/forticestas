@@ -1,5 +1,6 @@
 import {NextRequest,NextResponse} from "next/server";
 import {randomUUID} from "node:crypto";
+import {put as putBlob} from "@vercel/blob";
 import {mkdir,writeFile} from "node:fs/promises";
 import path from "node:path";
 import {getAdminContext} from "@/lib/admin-auth";
@@ -16,9 +17,14 @@ export async function POST(request:NextRequest){
   if(!extension)return NextResponse.json({error:"Formato não permitido. Use JPG, PNG, WEBP, AVIF ou GIF."},{status:415});
   if(file.size<1||file.size>8*1024*1024)return NextResponse.json({error:"A imagem deve ter no máximo 8 MB."},{status:413});
   const filename=randomUUID()+"."+extension;
-  const directory=path.join(process.env.FORTI_STORAGE_DIR||path.join(process.cwd(),"data"),"uploads");
-  await mkdir(directory,{recursive:true});
-  await writeFile(path.join(directory,filename),Buffer.from(await file.arrayBuffer()),{flag:"wx",mode:0o644});
+  if(process.env.VERCEL==="1"||process.env.VERCEL==="true"){
+   if(!process.env.BLOB_READ_WRITE_TOKEN)throw new Error("O armazenamento de imagens da Vercel não está conectado ao projeto.");
+   await putBlob("media/"+filename,file,{access:"private",addRandomSuffix:false,allowOverwrite:false,contentType:file.type,cacheControlMaxAge:31536000});
+  }else{
+   const directory=path.join(process.env.FORTI_STORAGE_DIR||path.join(process.cwd(),"data"),"uploads");
+   await mkdir(directory,{recursive:true});
+   await writeFile(path.join(directory,filename),Buffer.from(await file.arrayBuffer()),{flag:"wx",mode:0o644});
+  }
   return NextResponse.json({url:"/api/media/"+filename});
  }catch(error){
   return NextResponse.json({error:error instanceof Error?error.message:"Não foi possível enviar a imagem."},{status:500});
