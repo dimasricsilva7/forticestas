@@ -16,7 +16,7 @@ export default async function AdminPage() {
         <Link href="/" className="forti-brand"><Image src="/images/logo.svg" alt="" width={38} height={38}/><span><strong>FortiCestas</strong><small>Cestas básicas para sua família</small></span></Link>
         <h1 className="mt-8">Configuração do painel pendente</h1>
         <p className="quiz-sub">{context.message}</p>
-        <p className="text-sm text-gray-500">Configure o Supabase e autorize seu usuário na tabela admin_users, conforme o README.</p>
+        <p className="text-sm text-gray-500">Configure ADMIN_EMAIL, ADMIN_PASSWORD e ADMIN_SESSION_SECRET nas variáveis privadas do servidor.</p>
       </section></main>
     );
   }
