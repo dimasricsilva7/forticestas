@@ -12,7 +12,7 @@ export type LocalBasket={id:string;name:string;slug:string;description:string;pr
 export type LocalQuizQuestion={id:string;question_key:string;title:string;subtitle:string;options:{value:string;description:string}[];multi:boolean;required:boolean;position:number;active:boolean};
 export type LocalOrderItem={product_name:string;sku:string|null;quantity:number;line_total_cents:number};
 export type LocalOrder={id:string;order_number:number;idempotency_key:string;customer_name:string;customer_email:string|null;customer_phone:string;cep:string;address:Record<string,unknown>;subtotal_cents:number;shipping_cents:number;total_cents:number;shipping_service:string;payment_status:"pending"|"paid"|"failed"|"refunded"|"chargeback";fulfillment_status:"pending"|"processing"|"shipped"|"delivered"|"cancelled";payment_reference:string|null;payment_payload:{copy_paste?:string;qr_code?:string|null;expires_at?:string}|null;order_items:LocalOrderItem[];created_at:string;updated_at:string;paid_at:string|null};
-export type LocalStore={version:1;catalog_pricing_revision:1;products:LocalProduct[];baskets:LocalBasket[];quiz_questions:LocalQuizQuestion[];orders:LocalOrder[];processed_payment_events:string[];next_order_number:number;home_content:HomeContent};
+export type LocalStore={version:1;catalog_pricing_revision:2;products:LocalProduct[];baskets:LocalBasket[];quiz_questions:LocalQuizQuestion[];orders:LocalOrder[];processed_payment_events:string[];next_order_number:number;home_content:HomeContent};
 
 function slugify(value:string){return value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");}
 function initialStore():LocalStore{
@@ -61,21 +61,22 @@ function normalizeStore(parsed:unknown):LocalStore{
    hero_image_subtitle:"Cestas básicas para o dia a dia da sua família"
   };
  }
- if(store.catalog_pricing_revision!==1){
+ if(store.catalog_pricing_revision!==2){
   const prices:Record<string,number>={"cesta-basica":9990,"cesta-economica":12990,"cesta-tradicional":18990,"cesta-completa":21990};
   for(const basket of store.baskets){
    const price=prices[basket.slug];
    if(price!==undefined)basket.price_cents=price;
   }
-  store.catalog_pricing_revision=1;
+  store.catalog_pricing_revision=2;
  }
  return store;
 }
 async function loadLocalStore():Promise<LocalStore>{
  try{
   const parsed=JSON.parse(await readFile(storageFile(),"utf8")) as LocalStore;
+  const needsMigration=parsed.catalog_pricing_revision!==2;
   const migrated=normalizeStore(parsed);
-  if(parsed.catalog_pricing_revision!==1)await persistLocalStore(migrated);
+  if(needsMigration)await persistLocalStore(migrated);
   return migrated;
  }
  catch(error){if((error as NodeJS.ErrnoException).code==="ENOENT")return initialStore();throw error;}
@@ -86,9 +87,10 @@ async function loadBlobSnapshot():Promise<{store:LocalStore;etag:string|null}>{
  if(!result)return {store:initialStore(),etag:null};
  const json=await new Response(result.stream).text();
  const parsed=JSON.parse(json) as LocalStore;
+ const needsMigration=parsed.catalog_pricing_revision!==2;
  const store=normalizeStore(parsed);
  let etag=result.blob.etag||null;
- if(parsed.catalog_pricing_revision!==1){
+ if(needsMigration){
   try{const saved=await saveBlobSnapshot(store,etag);etag=saved.etag;}
   catch(error){if(isBlobConflict(error))return loadBlobSnapshot();throw error;}
  }
