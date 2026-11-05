@@ -61,6 +61,14 @@ function normalizeStore(parsed:unknown):LocalStore{
    hero_image_subtitle:"Cestas básicas para o dia a dia da sua família"
   };
  }
+ if(store.catalog_pricing_revision!==1){
+  const prices:Record<string,number>={"cesta-basica":9990,"cesta-economica":12990,"cesta-tradicional":18990,"cesta-completa":21990};
+  for(const basket of store.baskets){
+   const price=prices[basket.slug];
+   if(price!==undefined)basket.price_cents=price;
+  }
+  store.catalog_pricing_revision=1;
+ }
  return store;
 }
 async function loadLocalStore():Promise<LocalStore>{
