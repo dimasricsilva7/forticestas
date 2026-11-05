@@ -4,7 +4,7 @@ Loja de cestas básicas com quatro composições iniciais, quiz de recomendaçã
 
 ## Armazenamento
 
-O catálogo, os produtos, as perguntas do quiz e os pedidos são salvos em um arquivo JSON no disco do servidor:
+O catálogo, os produtos, as perguntas do quiz, o conteúdo editável da página inicial e os pedidos são salvos em um arquivo JSON no disco do servidor. Imagens enviadas pelo painel ficam em `FORTI_STORAGE_DIR/uploads`:
 
 \`FORTI_STORAGE_DIR/forticestas.json\`
 
