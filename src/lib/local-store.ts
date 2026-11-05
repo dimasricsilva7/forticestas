@@ -53,10 +53,13 @@ function normalizeStore(parsed:unknown):LocalStore{
  store.home_content={...DEFAULT_HOME_CONTENT,...savedHomeContent};
  // Move the original starter hero to the newly designed family photo. Keep custom admin uploads untouched.
  if(!savedHomeContent.hero_image_url||savedHomeContent.hero_image_url==="/images/hero.svg"){
-  store.home_content.hero_image_url="/images/hero-forticestas.svg";
-  store.home_content.hero_image_alt="Família reunida com uma cesta de alimentos FortiCestas";
-  store.home_content.hero_image_caption="FortiCestas";
-  store.home_content.hero_image_subtitle="Cestas básicas para o dia a dia da sua família";
+  store.home_content={
+   ...store.home_content,
+   hero_image_url:"/images/hero-forticestas.svg",
+   hero_image_alt:"Família reunida com uma cesta de alimentos FortiCestas",
+   hero_image_caption:"FortiCestas",
+   hero_image_subtitle:"Cestas básicas para o dia a dia da sua família"
+  };
  }
  return store;
 }
