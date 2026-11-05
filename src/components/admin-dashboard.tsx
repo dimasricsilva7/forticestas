@@ -1,16 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import {DEFAULT_HOME_CONTENT,type HomeContent} from "@/lib/home-content";
 
 type Product = {
   id: string; name: string; slug: string; description: string; sku: string | null;
   price_cents: number; stock_quantity: number; weight_grams: number; width_cm: number; height_cm: number; length_cm: number; image_url: string | null; active: boolean;
 };
 type BasketItem = { product_id: string; quantity: number };
+type ImageFieldProps = {label:string;value:string;onChange:(value:string)=>void};
 type Basket = {
   id: string; name: string; slug: string; description: string; price_cents: number;
   category: "basic" | "economic" | "traditional" | "complete";
-  supported_households: string[]; food_tags: string[];
+  supported_households: string[]; food_tags: string[]; image_url:string|null;
   active: boolean; position: number; basket_items: BasketItem[];
 };
 type OrderItem = { product_name: string; sku: string | null; quantity: number; line_total_cents: number };
@@ -34,6 +36,29 @@ const emptyProduct: ProductForm = {
   name:"", slug:"", description:"", sku:"", price:"", stock:"0", weight_grams:"500", width_cm:"20", height_cm:"20", length_cm:"20", image_url:"", active:true
 };
 
+function ImageField({label,value,onChange}:ImageFieldProps){
+ const [uploading,setUploading]=useState(false),[message,setMessage]=useState("");
+ async function upload(file?:File){
+  if(!file)return;setMessage("");
+  if(file.size>8*1024*1024){setMessage("A imagem deve ter no máximo 8 MB.");return;}
+  const form=new FormData();form.append("file",file);setUploading(true);
+  try{const response=await fetch("/api/admin/media",{method:"POST",body:form});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||"Falha no envio da imagem.");onChange(data.url);setMessage("Imagem enviada.");}
+  catch(error){setMessage(error instanceof Error?error.message:"Não foi possível enviar a imagem.");}
+  finally{setUploading(false);}
+ }
+ return <div className="image-field"><label>{label} — URL<input type="url" placeholder="https://... ou /api/media/..." value={value} onChange={event=>onChange(event.target.value)}/></label><label>Ou envie um arquivo<input type="file" accept="image/png,image/jpeg,image/webp,image/avif,image/gif" disabled={uploading} onChange={event=>void upload(event.target.files?.[0])}/></label>{uploading&&<small>Enviando imagem...</small>}{message&&<small>{message}</small>}{value&&<img src={value} alt="Prévia da imagem" className="image-field-preview"/>}</div>;
+}
+
+const homeGroups:{title:string;fields:{key:keyof HomeContent;label:string;multiline?:boolean;image?:boolean}[]}[]=[
+ {title:"Identidade visual",fields:[{key:"brand_name",label:"Nome da loja"},{key:"brand_tagline",label:"Subtítulo da marca"},{key:"logo_url",label:"Logo",image:true}]},
+ {title:"Cabeçalho e navegação",fields:[{key:"nav_home_label",label:"Link início"},{key:"nav_catalog_label",label:"Link catálogo"},{key:"nav_quiz_label",label:"Link quiz"},{key:"header_button_text",label:"Texto do botão"},{key:"header_button_url",label:"Destino do botão"}]},
+ {title:"Banner principal",fields:[{key:"hero_eyebrow",label:"Texto pequeno acima do título"},{key:"hero_title",label:"Título principal"},{key:"hero_highlight",label:"Trecho destacado"},{key:"hero_description",label:"Descrição",multiline:true},{key:"hero_primary_text",label:"Botão principal"},{key:"hero_primary_url",label:"Link do botão principal"},{key:"hero_secondary_text",label:"Botão secundário"},{key:"hero_secondary_url",label:"Link do botão secundário"},{key:"hero_image_url",label:"Imagem principal",image:true},{key:"hero_image_alt",label:"Descrição acessível da imagem"},{key:"hero_image_caption",label:"Legenda da imagem"},{key:"hero_image_subtitle",label:"Subtítulo da legenda"}]},
+ {title:"Cards de benefícios",fields:[{key:"benefit_one_icon",label:"Ícone do benefício 1"},{key:"benefit_one_title",label:"Título do benefício 1"},{key:"benefit_one_description",label:"Descrição do benefício 1"},{key:"benefit_two_icon",label:"Ícone do benefício 2"},{key:"benefit_two_title",label:"Título do benefício 2"},{key:"benefit_two_description",label:"Descrição do benefício 2"},{key:"benefit_three_icon",label:"Ícone do benefício 3"},{key:"benefit_three_title",label:"Título do benefício 3"},{key:"benefit_three_description",label:"Descrição do benefício 3"}]},
+ {title:"Seção do catálogo",fields:[{key:"catalog_eyebrow",label:"Texto de apoio"},{key:"catalog_title",label:"Título",multiline:true},{key:"catalog_description",label:"Descrição",multiline:true},{key:"catalog_link_text",label:"Link para catálogo"},{key:"basket_card_button_text",label:"Botão de cada cesta"}]},
+ {title:"Banner do quiz",fields:[{key:"quiz_banner_title",label:"Título"},{key:"quiz_banner_description",label:"Descrição",multiline:true},{key:"quiz_banner_button_text",label:"Texto do botão"},{key:"quiz_banner_button_url",label:"Link do botão"}]},
+ {title:"Rodapé",fields:[{key:"footer_description",label:"Texto do rodapé",multiline:true}]}
+];
+
 function currency(cents: number) {
   return new Intl.NumberFormat("pt-BR", { style:"currency", currency:"BRL" }).format(cents / 100);
 }
@@ -52,7 +77,8 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export default function AdminDashboard() {
-  const [tab,setTab] = useState<"overview"|"products"|"baskets"|"quiz"|"orders">("overview");
+  const [tab,setTab] = useState<"overview"|"home"|"products"|"baskets"|"quiz"|"orders">("overview");
+  const [homeContent,setHomeContent]=useState<HomeContent>({...DEFAULT_HOME_CONTENT});
   const [products,setProducts] = useState<Product[]>([]);
   const [questions,setQuestions] = useState<QuizQuestion[]>([]);
   const [baskets,setBaskets] = useState<Basket[]>([]);
@@ -63,7 +89,7 @@ export default function AdminDashboard() {
   const [error,setError] = useState("");
   const [productForm,setProductForm] = useState<ProductForm>(emptyProduct);
   const [basketForm,setBasketForm] = useState({
-    id:"",name:"",slug:"",description:"",price:"",
+    id:"",name:"",slug:"",description:"",price:"",image_url:"",
     category:"traditional" as "basic"|"economic"|"traditional"|"complete",
     supported_households:[] as string[],food_tags:[] as string[],
     active:true,items:[] as {product_id:string;quantity:number}[]
@@ -77,14 +103,15 @@ export default function AdminDashboard() {
   const loadAll = useCallback(async () => {
     setLoading(true); setError("");
     try {
-      const [o,p,b,r,q] = await Promise.all([
+      const [o,p,b,r,q,h] = await Promise.all([
         request<typeof overview>("/api/admin/overview"),
         request<{products:Product[]}>("/api/admin/products"),
         request<{baskets:Basket[]}>("/api/admin/baskets"),
         request<{orders:Order[]}>("/api/admin/orders"),
         request<{questions:QuizQuestion[]}>("/api/admin/quiz-questions"),
+        request<{content:HomeContent}>("/api/admin/home-content"),
       ]);
-      setOverview(o); setProducts(p.products); setBaskets(b.baskets); setOrders(r.orders); setQuestions(q.questions);
+      setOverview(o); setProducts(p.products); setBaskets(b.baskets); setOrders(r.orders); setQuestions(q.questions); setHomeContent(h.content);
     } catch (e) { setError(e instanceof Error ? e.message : "Erro ao carregar o painel."); }
     finally { setLoading(false); }
   },[]);
@@ -130,7 +157,7 @@ export default function AdminDashboard() {
     const price = Number(basketForm.price.replace(",","."));
     const payload = {
       name:basketForm.name,slug:basketForm.slug || toSlug(basketForm.name),
-      description:basketForm.description,price_cents:Math.round(price*100),
+      description:basketForm.description,price_cents:Math.round(price*100),image_url:basketForm.image_url||null,
       category:basketForm.category,
       supported_households:basketForm.supported_households,
       food_tags:basketForm.food_tags,
@@ -141,7 +168,7 @@ export default function AdminDashboard() {
       if (basketForm.id) await request(`/api/admin/baskets/${basketForm.id}`,{method:"PATCH",body:JSON.stringify(payload)});
       else await request("/api/admin/baskets",{method:"POST",body:JSON.stringify(payload)});
       setBasketForm({
-        id:"",name:"",slug:"",description:"",price:"",category:"traditional",
+        id:"",name:"",slug:"",description:"",price:"",image_url:"",category:"traditional",
         supported_households:[],food_tags:[],active:true,items:[]
       });
       setNotice("Cesta salva."); await loadAll();
@@ -150,7 +177,7 @@ export default function AdminDashboard() {
 
   function editBasket(basket:Basket) {
     setBasketForm({
-      id:basket.id,name:basket.name,slug:basket.slug,description:basket.description || "",
+      id:basket.id,name:basket.name,slug:basket.slug,description:basket.description || "",image_url:basket.image_url||"",
       price:(basket.price_cents/100).toFixed(2).replace(".",","),active:basket.active,
       category:basket.category || "traditional",
       supported_households:basket.supported_households || [],
@@ -164,6 +191,12 @@ export default function AdminDashboard() {
     if (!window.confirm(`Excluir a cesta "${basket.name}"?`)) return;
     try { await request(`/api/admin/baskets/${basket.id}`,{method:"DELETE"}); setNotice("Cesta excluída."); await loadAll(); }
     catch(e) { setError(e instanceof Error ? e.message : "Não foi possível excluir."); }
+  }
+
+  async function saveHomeContent(event:React.FormEvent<HTMLFormElement>){
+    event.preventDefault();setError("");setNotice("");
+    try{const saved=await request<{content:HomeContent}>("/api/admin/home-content",{method:"PUT",body:JSON.stringify(homeContent)});setHomeContent(saved.content);setNotice("Conteúdo da página inicial salvo.");}
+    catch(e){setError(e instanceof Error?e.message:"Não foi possível salvar o conteúdo.");}
   }
 
   async function updateOrder(id:string,status:string) {
@@ -242,7 +275,7 @@ export default function AdminDashboard() {
   }
 
   const nav: Array<[typeof tab,string]> = [
-    ["overview","Visão geral"],["products","Produtos"],["baskets","Cestas"],["quiz","Perguntas do quiz"],["orders","Pedidos"]
+    ["overview","Visão geral"],["home","Página inicial"],["products","Produtos"],["baskets","Cestas"],["quiz","Perguntas do quiz"],["orders","Pedidos"]
   ];
 
   return (
@@ -257,6 +290,12 @@ export default function AdminDashboard() {
       {notice && <div className="admin-notice">{notice}</div>}
       {error && <div className="admin-error" role="alert">{error}</div>}
       {loading ? <div className="empty-state">Carregando dados do painel...</div> : null}
+
+      {!loading && tab==="home" && <form className="site-content-editor" onSubmit={saveHomeContent}>
+        <div className="detail-panel"><h2>Editor da página inicial</h2><p>Edite textos, títulos, imagens, botões e destinos dos links. As imagens podem ser enviadas por arquivo (até 8 MB) ou informadas por URL HTTPS. As alterações aparecem na página inicial após salvar.</p></div>
+        {homeGroups.map(group=><section className="admin-form site-content-group" key={group.title}><h2>{group.title}</h2><div className="site-content-fields">{group.fields.map(field=>field.image?<ImageField key={field.key} label={field.label} value={homeContent[field.key]} onChange={value=>setHomeContent(previous=>({...previous,[field.key]:value}))}/>:<label key={field.key}>{field.label}{field.multiline?<textarea rows={3} value={homeContent[field.key]} onChange={event=>setHomeContent(previous=>({...previous,[field.key]:event.target.value}))}/>:<input value={homeContent[field.key]} onChange={event=>setHomeContent(previous=>({...previous,[field.key]:event.target.value}))}/>}</label>)}</div></section>)}
+        <div className="form-actions"><button className="primary-btn" type="submit">Salvar página inicial</button></div>
+      </form>}
 
       {!loading && tab==="overview" && <>
         <div className="stats-grid">
@@ -276,7 +315,7 @@ export default function AdminDashboard() {
           <label>Descrição<textarea rows={3} value={productForm.description} onChange={e=>setProductForm({...productForm,description:e.target.value})}/></label>
           <div className="form-row"><label>Preço (R$)<input required inputMode="decimal" placeholder="0,00" value={productForm.price} onChange={e=>setProductForm({...productForm,price:e.target.value})}/></label><label>Estoque<input required type="number" min="0" value={productForm.stock} onChange={e=>setProductForm({...productForm,stock:e.target.value})}/></label></div>
           <div className="form-row"><label>Peso (gramas)<input required type="number" min="1" max="100000" value={productForm.weight_grams} onChange={e=>setProductForm({...productForm,weight_grams:e.target.value})}/></label><label>Largura (cm)<input required type="number" min="0.1" max="300" step="0.1" value={productForm.width_cm} onChange={e=>setProductForm({...productForm,width_cm:e.target.value})}/></label></div>\n          <div className="form-row"><label>Altura (cm)<input required type="number" min="0.1" max="300" step="0.1" value={productForm.height_cm} onChange={e=>setProductForm({...productForm,height_cm:e.target.value})}/></label><label>Comprimento (cm)<input required type="number" min="0.1" max="300" step="0.1" value={productForm.length_cm} onChange={e=>setProductForm({...productForm,length_cm:e.target.value})}/></label></div>
-          <div className="form-row"><label>SKU<input value={productForm.sku} onChange={e=>setProductForm({...productForm,sku:e.target.value})}/></label><label>URL da imagem<input type="url" value={productForm.image_url} onChange={e=>setProductForm({...productForm,image_url:e.target.value})}/></label></div>
+          <div className="form-row"><label>SKU<input value={productForm.sku} onChange={e=>setProductForm({...productForm,sku:e.target.value})}/></label></div><ImageField label="Imagem do produto" value={productForm.image_url} onChange={value=>setProductForm({...productForm,image_url:value})}/>
           <label className="inline-check"><input type="checkbox" checked={productForm.active} onChange={e=>setProductForm({...productForm,active:e.target.checked})}/> Produto ativo no catálogo</label>
           <div className="form-actions"><button className="primary-btn" type="submit">Salvar produto</button>{productForm.id&&<button className="secondary-btn" type="button" onClick={()=>setProductForm(emptyProduct)}>Cancelar edição</button>}</div>
         </form>
@@ -295,6 +334,7 @@ export default function AdminDashboard() {
           <label>Slug<input required value={basketForm.slug} onChange={e=>setBasketForm({...basketForm,slug:toSlug(e.target.value)})}/></label>
           <label>Descrição<textarea rows={3} value={basketForm.description} onChange={e=>setBasketForm({...basketForm,description:e.target.value})}/></label>
           <label>Preço final (R$)<input required inputMode="decimal" placeholder="0,00" value={basketForm.price} onChange={e=>setBasketForm({...basketForm,price:e.target.value})}/></label>
+          <ImageField label="Imagem da cesta" value={basketForm.image_url} onChange={value=>setBasketForm({...basketForm,image_url:value})}/>
           <label>Perfil da cesta
             <select value={basketForm.category} onChange={e=>setBasketForm({...basketForm,category:e.target.value as "economic"|"traditional"|"complete"})}>
               <option value="basic">Básica</option>
@@ -329,7 +369,7 @@ export default function AdminDashboard() {
             return <div className="picker-row" key={product.id}><label className="inline-check"><input type="checkbox" checked={Boolean(selected)} onChange={()=>toggleBasketProduct(product.id)}/><span>{product.name}</span></label>{selected&&<input className="qty-input" type="number" min="1" value={selected.quantity} onChange={e=>setBasketQuantity(product.id,Number(e.target.value))}/>}</div>;
           })}</div>
           <div className="form-actions"><button className="primary-btn" type="submit">Salvar cesta</button>{basketForm.id&&<button className="secondary-btn" type="button" onClick={()=>setBasketForm({
-  id:"",name:"",slug:"",description:"",price:"",category:"traditional",
+  id:"",name:"",slug:"",description:"",price:"",image_url:"",category:"traditional",
   supported_households:[],food_tags:[],active:true,items:[]
 })}>Cancelar edição</button>}</div>
         </form>
