@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import {Check,Circle,Plus} from "lucide-react";
 import { useRouter } from "next/navigation";
 import {DEFAULT_HOME_CONTENT,type HomeContent} from "@/lib/home-content";
 
@@ -286,7 +287,7 @@ export default function QuizPage() {
                       <strong>{option.value}</strong>
                       <small>{option.description}</small>
                     </span>
-                    <span aria-hidden>{selected ? "✓" : current.multi ? "＋" : "○"}</span>
+                    <span className="quiz-option-indicator" aria-hidden>{selected ? <Check size={17} strokeWidth={2.5}/> : current.multi ? <Plus size={17}/> : <Circle size={17}/>}</span>
                   </button>
                 );
               })}
