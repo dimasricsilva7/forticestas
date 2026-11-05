@@ -12,7 +12,7 @@ const BRAZILIAN_DDDS = new Set([
 
 /** Keep only one Brazilian national phone number (DDD + 8 or 9 digits). */
 export function normalizeBrazilianPhone(value: string): string {
-  return value.replace(/\\D/g, "");
+  return value.replace(/\D/g, "");
 }
 
 export function isValidBrazilianPhone(value: string): boolean {
