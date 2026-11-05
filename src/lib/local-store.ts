@@ -2,6 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { BlobPreconditionFailedError, get as getBlob, put as putBlob } from "@vercel/blob";
 import { STARTER_BASKETS } from "@/lib/catalog";
 import { DEFAULT_HOME_CONTENT, type HomeContent } from "@/lib/home-content";
 
@@ -37,27 +38,96 @@ function initialStore():LocalStore{
  return {version:1,products,baskets,quiz_questions,orders:[],processed_payment_events:[],next_order_number:1001,home_content:{...DEFAULT_HOME_CONTENT}};
 }
 function storageFile(){return path.join(process.env.FORTI_STORAGE_DIR||path.join(process.cwd(),"data"),"forticestas.json");}
+const BLOB_STORE_PATH="data/forticestas.json";
 function isVercelRuntime(){return process.env.VERCEL==="1"||process.env.VERCEL==="true";}
-async function loadStore():Promise<LocalStore>{
- try{
-  const parsed=JSON.parse(await readFile(storageFile(),"utf8")) as LocalStore;
-  if(parsed.version!==1||!Array.isArray(parsed.products)||!Array.isArray(parsed.baskets)||!Array.isArray(parsed.orders))throw new Error("O arquivo local da FortiCestas tem um formato inválido.");
-  parsed.home_content={...DEFAULT_HOME_CONTENT,...(parsed.home_content||{})};
-  return parsed;
- }catch(error){if((error as NodeJS.ErrnoException).code==="ENOENT")return initialStore();throw error;}
+function hasBlobCredentials(){
+ return Boolean(process.env.BLOB_READ_WRITE_TOKEN||(process.env.BLOB_STORE_ID&&process.env.VERCEL_OIDC_TOKEN));
+}
+function normalizeStore(parsed:unknown):LocalStore{
+ if(!parsed||typeof parsed!=="object")throw new Error("O armazenamento da FortiCestas retornou dados inválidos.");
+ const store=parsed as LocalStore;
+ if(store.version!==1||!Array.isArray(store.products)||!Array.isArray(store.baskets)||!Array.isArray(store.orders)||!Array.isArray(store.quiz_questions))throw new Error("O arquivo da FortiCestas tem um formato inválido.");
+ store.processed_payment_events=Array.isArray(store.processed_payment_events)?store.processed_payment_events:[];
+ store.next_order_number=Number.isInteger(store.next_order_number)?store.next_order_number:1001;
+ store.home_content={...DEFAULT_HOME_CONTENT,...(store.home_content||{})};
+ return store;
+}
+async function loadLocalStore():Promise<LocalStore>{
+ try{return normalizeStore(JSON.parse(await readFile(storageFile(),"utf8")) as unknown);}
+ catch(error){if((error as NodeJS.ErrnoException).code==="ENOENT")return initialStore();throw error;}
+}
+async function loadBlobSnapshot():Promise<{store:LocalStore;etag:string|null}>{
+ if(!hasBlobCredentials())throw new Error("O Vercel Blob ainda não está conectado. Confira BLOB_READ_WRITE_TOKEN nas variáveis do projeto.");
+ const result=await getBlob(BLOB_STORE_PATH,{access:"private",useCache:false});
+ if(!result)return {store:initialStore(),etag:null};
+ const json=await new Response(result.stream).text();
+ return {store:normalizeStore(JSON.parse(json) as unknown),etag:result.blob.etag||null};
+}
+async function saveBlobSnapshot(store:LocalStore,etag:string|null){
+ return putBlob(BLOB_STORE_PATH,JSON.stringify(store),{
+  access:"private",
+  addRandomSuffix:false,
+  allowOverwrite:Boolean(etag),
+  contentType:"application/json",
+  cacheControlMaxAge:60,
+  ...(etag?{ifMatch:etag}:{})
+ });
 }
 let writeQueue:Promise<void>=Promise.resolve();
-async function persistStore(store:LocalStore){
- if(isVercelRuntime())throw new Error("O armazenamento local permanente exige um servidor com disco persistente. A Vercel não mantém gravações no disco entre execuções.");
+async function persistLocalStore(store:LocalStore){
  const file=storageFile(),directory=path.dirname(file);await mkdir(directory,{recursive:true});
  const temporary=file+"."+randomUUID()+".tmp";
  await writeFile(temporary,JSON.stringify(store,null,2),{encoding:"utf8",mode:0o600});
  await rename(temporary,file);
 }
-export async function readLocalStore(){return loadStore();}
+function isBlobConflict(error:unknown){
+ return error instanceof BlobPreconditionFailedError||
+  (error instanceof Error&&["BlobPreconditionFailedError","BlobAlreadyExistsError"].includes(error.name));
+}
+async function updateBlobStore<T>(mutator:(store:LocalStore)=>T|Promise<T>):Promise<T>{
+ for(let attempt=0;attempt<6;attempt++){
+  const snapshot=await loadBlobSnapshot();
+  const result=await mutator(snapshot.store);
+  try{
+   await saveBlobSnapshot(snapshot.store,snapshot.etag);
+   return result;
+  }catch(error){
+   if(isBlobConflict(error)){
+    continue;
+   }
+   if(!snapshot.etag){
+    // Another serverless invocation may have initialized the same store first.
+    const latest=await loadBlobSnapshot();
+    if(latest.etag)continue;
+   }
+   throw error;
+  }
+ }
+ throw new Error("O catálogo recebeu alterações simultâneas. Tente salvar novamente.");
+}
+export async function initializeLocalStore(){
+ if(!isVercelRuntime())return loadLocalStore();
+ const snapshot=await loadBlobSnapshot();
+ if(snapshot.etag)return snapshot.store;
+ try{await saveBlobSnapshot(snapshot.store,null);}
+ catch(error){
+  if(!isBlobConflict(error))throw error;
+ }
+ return (await loadBlobSnapshot()).store;
+}
+export async function readLocalStore(){
+ if(isVercelRuntime())return (await loadBlobSnapshot()).store;
+ return loadLocalStore();
+}
 export async function updateLocalStore<T>(mutator:(store:LocalStore)=>T|Promise<T>):Promise<T>{
- const operation=writeQueue.then(async()=>{const store=await loadStore();const result=await mutator(store);await persistStore(store);return result;});
- writeQueue=operation.then(()=>undefined,()=>undefined);return operation;
+ const operation=writeQueue.then(async()=>{
+  if(isVercelRuntime())return updateBlobStore(mutator);
+  const store=await loadLocalStore(),result=await mutator(store);
+  await persistLocalStore(store);
+  return result;
+ });
+ writeQueue=operation.then(()=>undefined,()=>undefined);
+ return operation;
 }
 export function publicBasket(basket:LocalBasket,store:LocalStore){
  const starter=STARTER_BASKETS.find((item)=>item.slug===basket.slug);
