@@ -1,45 +1,56 @@
 # FortiCestas
 
-Loja de cestas básicas com experiência de recomendação por quiz, catálogo administrável e checkout Pix.
+Loja de cestas básicas com quatro composições iniciais, quiz de recomendação, painel administrativo, checkout Pix e frete grátis.
 
-## Stack
+## Armazenamento
 
-- Next.js 15 + React 19 + TypeScript
-- Tailwind CSS 4
-- Supabase (Postgres, Auth e Storage) — preparado, ainda não conectado
-- Vercel — destino de deploy
+O catálogo, os produtos, as perguntas do quiz, o conteúdo editável da página inicial e os pedidos são salvos em um arquivo JSON no disco do servidor. Imagens enviadas pelo painel ficam em `FORTI_STORAGE_DIR/uploads`:
 
-## Rodar localmente
+\`FORTI_STORAGE_DIR/forticestas.json\`
 
-```bash
-npm install
-cp .env.example .env.local
-npm run dev
-```
+Se \`FORTI_STORAGE_DIR\` não for informado, o aplicativo usa \`./data/forticestas.json\`. O arquivo é criado na primeira alteração salva pelo painel ou pelo checkout. Faça backup periódico desse arquivo.
 
-Abra http://localhost:3000.
+**Hospedagem obrigatória:** use um servidor Node.js com diretório persistente e permissão de escrita (por exemplo, VPS ou hospedagem própria). A Vercel usa funções serverless e não mantém gravações feitas no disco local entre execuções; este modo de armazenamento não é compatível com a Vercel para operações reais. Não publique a loja com pedidos habilitados nesse ambiente, pois os pedidos não ficariam persistidos.
 
-## Rotas iniciais
+## Configuração
 
-- `/` — página inicial
-- `/quiz` — questionário de perfil e consulta de CEP via ViaCEP
-- `/resultado` — resumo da recomendação (não simula estoque nem frete real)
-- `/admin` — esqueleto visual do painel administrativo (não protegido; demonstração apenas)
+Requisitos: Node.js 22.x.
 
-## Configurações obrigatórias antes de produção
+1. Instale as dependências com \`npm install\`.
+2. Copie \`.env.example\` para \`.env.local\`.
+3. Configure:
+   - \`FORTI_STORAGE_DIR\`: diretório persistente gravável pelo processo Node.
+   - \`ADMIN_EMAIL\`, \`ADMIN_PASSWORD\` e \`ADMIN_SESSION_SECRET\`: credenciais do painel. O segredo precisa ter pelo menos 32 caracteres.
+   - \`BRAVOPAY_API_KEY\` e \`BRAVOPAY_WEBHOOK_SECRET\`: credenciais do Pix.
+   - \`NEXT_PUBLIC_SITE_URL\`: endereço público com HTTPS.
+4. Garanta que o usuário do processo Node tenha permissão de escrita no diretório de armazenamento.
+5. Execute \`npm run build\` e inicie com \`npm run start\` sob PM2 ou systemd.
 
-1. Criar projeto Supabase e preencher as variáveis do `.env.example`.
-2. Aplicar o schema em `supabase/schema.sql`.
-3. Implementar autenticação e autorização do painel; nunca publicar o painel administrativo sem proteção.
-4. Definir provedor de frete e implementar cotação/etiquetas via API.
-5. Integrar BravoPay exclusivamente no servidor, validar assinatura do webhook e só marcar pedido como pago após confirmação autenticada.
-6. Cadastrar produtos, preços, imagens, estoque e composição real das cestas.
-7. Configurar domínio, URL pública, políticas de privacidade, termos e informações comerciais.
+O login administrativo fica em \`/admin/login\`.
 
-## Integrações
+## Pix e frete
 
-As credenciais não devem ser versionadas. Use variáveis de ambiente na Vercel. O token de serviço do Supabase e as chaves da BravoPay devem permanecer apenas no servidor. O navegador nunca deve receber segredos.
+O checkout cria uma cobrança Pix dinâmica pela BravoPay. Configure no painel da BravoPay o webhook:
 
-## Estado do projeto
+\`https://SEU-DOMINIO/api/webhooks/bravopay\`
 
-Este commit disponibiliza a estrutura inicial de interface e organização. Não é uma loja pronta para receber pagamentos: catálogo, administração segura, checkout BravoPay, frete e webhooks ainda precisam ser implementados e testados.
+O endpoint valida a assinatura HMAC antes de mudar o status de um pedido. Pagamentos confirmados, expirados, reembolsados e chargebacks atualizam o arquivo local.
+
+O frete está definido como grátis: o total enviado à BravoPay é igual ao preço da cesta. O CEP e o endereço continuam sendo solicitados para registrar o destino da entrega.
+
+## Catálogo inicial
+
+| Cesta | Preço sugerido |
+|---|---:|
+| Básica | R$ 89,90 |
+| Econômica | R$ 159,90 |
+| Tradicional | R$ 239,90 |
+| Completa | R$ 349,90 |
+
+Os preços e a composição são sugestões iniciais, não cotações de fornecedores. Valide custo dos alimentos, embalagem, operação e margem antes de aceitar pedidos.
+
+O estoque fica disponível apenas no painel interno e não é exibido nas páginas públicas.
+
+## Desenvolvimento
+
+\`npm run dev\` inicia o ambiente local. As primeiras leituras usam o catálogo inicial; a primeira gravação cria \`data/forticestas.json\`.

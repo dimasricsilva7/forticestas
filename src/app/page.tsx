@@ -1,40 +1,40 @@
+import Image from "next/image";
 import Link from "next/link";
+import {readLocalStore,publicCatalog} from "@/lib/local-store";
+import {formatBRL} from "@/lib/catalog";
+import {DEFAULT_HOME_CONTENT} from "@/lib/home-content";
+export const dynamic="force-dynamic";
 
-export default function HomePage() {
-  return (
-    <main className="page-shell">
-      <header className="topbar">
-        <Link href="/" className="brand"><span className="brand-mark">F</span> FortiCestas</Link>
-        <span className="top-note">Praticidade para cuidar da sua família</span>
-      </header>
-      <section className="hero">
-        <div>
-          <span className="eyebrow">Sua compra mais simples</span>
-          <h1>Uma cesta que combina com a <em>sua família.</em></h1>
-          <p>Conte um pouco sobre sua casa e encontre uma sugestão de cesta básica de acordo com o tamanho da família, suas preferências e seu orçamento.</p>
-          <Link href="/quiz" className="primary-btn">Encontrar minha cesta <span aria-hidden>→</span></Link>
-          <div className="trust-row"><span>✓ Escolhas personalizadas</span><span>✓ Opções por orçamento</span><span>✓ Consulta de entrega por CEP</span></div>
-        </div>
-        <div className="hero-art" aria-label="Ilustração de cesta de alimentos">
-          <div className="basket">
-            <div className="basket-title"><span>Uma seleção para sua casa</span><span>🥬</span></div>
-            <div className="basket-items">
-              {["🍚","🫘","🛢️","🍝","☕","🥫","🍪","🧂","🥛"].map((food,i)=><div className="food" key={i}>{food}</div>)}
-            </div>
-            <div className="basket-foot"><span>Itens essenciais do dia a dia</span><strong>FortiCestas</strong></div>
-          </div>
-        </div>
-      </section>
-      <section className="section">
-        <h2>Comprar pode ser mais fácil.</h2>
-        <p className="section-lead">Uma experiência simples para entender o que faz sentido para a rotina da sua família.</p>
-        <div className="benefits">
-          <article className="benefit"><div className="benefit-icon">🧺</div><h3>Escolha orientada</h3><p>Responda algumas perguntas e receba uma sugestão alinhada ao que você procura.</p></article>
-          <article className="benefit"><div className="benefit-icon">💰</div><h3>Respeite seu orçamento</h3><p>Informe a faixa de valor que pretende investir antes de ver as opções.</p></article>
-          <article className="benefit"><div className="benefit-icon">🚚</div><h3>Consulte sua região</h3><p>Informe seu CEP para verificar as condições de entrega disponíveis.</p></article>
-        </div>
-      </section>
-      <footer className="footer">FortiCestas · Alimentos essenciais para o dia a dia</footer>
-    </main>
-  );
+export default async function HomePage(){
+ const store=await readLocalStore(),baskets=publicCatalog(store),c=store.home_content||DEFAULT_HOME_CONTENT;
+ return <main className="page-shell">
+  <header className="topbar forti-topbar">
+   <Link href="/" className="forti-brand" aria-label={c.brand_name+" - início"}><Image src={c.logo_url||"/images/logo.svg"} alt="" width={48} height={48} priority unoptimized/><span><strong>{c.brand_name}</strong><small>{c.brand_tagline}</small></span></Link>
+   <nav className="forti-nav" aria-label="Navegação principal"><Link href={c.nav_home_url}>{c.nav_home_label}</Link><Link href={c.nav_catalog_url}>{c.nav_catalog_label}</Link><Link href={c.nav_quiz_url}>{c.nav_quiz_label}</Link></nav>
+   <Link href={c.header_button_url} className="header-cta">{c.header_button_text} <span aria-hidden>→</span></Link>
+  </header>
+  <section className="forti-hero">
+   <div className="forti-hero-copy"><span className="eyebrow">{c.hero_eyebrow}</span>
+    <h1>{c.hero_title} <em>{c.hero_highlight}</em></h1>
+    <p>{c.hero_description}</p>
+    <div className="forti-hero-actions"><Link href={c.hero_primary_url} className="primary-btn">{c.hero_primary_text} <span aria-hidden>→</span></Link><Link href={c.hero_secondary_url} className="secondary-btn">{c.hero_secondary_text}</Link></div>
+    <div className="forti-trust-row"><span><b>✓</b> {c.trust_one_text}</span><span><b>✓</b> {c.trust_two_text}</span><span><b>✓</b> {c.trust_three_text}</span></div>
+   </div>
+   <div className="forti-hero-image"><Image src={c.hero_image_url||"/images/hero.svg"} alt={c.hero_image_alt} fill priority unoptimized sizes="(max-width: 760px) 100vw, 52vw"/><div className="hero-image-caption"><span>{c.hero_image_caption}</span><small>{c.hero_image_subtitle}</small></div></div>
+  </section>
+  <section className="forti-benefits" aria-label="Vantagens">
+   <div><span className="benefit-emoji">{c.benefit_one_icon}</span><strong>{c.benefit_one_title}</strong><small>{c.benefit_one_description}</small></div>
+   <div><span className="benefit-emoji">{c.benefit_two_icon}</span><strong>{c.benefit_two_title}</strong><small>{c.benefit_two_description}</small></div>
+   <div><span className="benefit-emoji">{c.benefit_three_icon}</span><strong>{c.benefit_three_title}</strong><small>{c.benefit_three_description}</small></div>
+  </section>
+  <section className="section forti-catalog-section" id="cestas">
+   <div className="forti-section-heading"><div><span className="eyebrow">{c.catalog_eyebrow}</span><h2>{c.catalog_title}</h2><p className="section-lead">{c.catalog_description}</p></div><Link href={c.catalog_link_url} className="text-link">{c.catalog_link_text}</Link></div>
+   <div className="forti-product-grid">{baskets.map((basket)=><article className="forti-product-card" key={basket.slug}>
+    <Link href={"/cestas/"+basket.slug} className="forti-product-image"><Image src={basket.image_url} alt={"Imagem da "+basket.name} fill unoptimized sizes="(max-width: 760px) 90vw, 25vw"/></Link>
+    <div className="forti-product-body"><div className="product-topline"><span>{basket.item_count} tipos de itens</span><span>{basket.supported_households[0]||"Várias famílias"}</span></div><h3>{basket.name}</h3><p>{basket.description}</p><strong className="product-price">{formatBRL(basket.price_cents)}</strong><Link href={"/cestas/"+basket.slug} className="product-link">{c.basket_card_button_text} <span aria-hidden>→</span></Link></div>
+   </article>)}</div>
+   <div className="forti-quiz-banner"><div><span className="quiz-banner-icon">✓</span><div><strong>{c.quiz_banner_title}</strong><p>{c.quiz_banner_description}</p></div></div><Link href={c.quiz_banner_button_url} className="primary-btn">{c.quiz_banner_button_text} <span aria-hidden>→</span></Link></div>
+  </section>
+  <footer className="footer forti-footer"><Link href="/" className="forti-brand"><Image src={c.logo_url||"/images/logo.svg"} alt="" width={38} height={38} unoptimized/><span><strong>{c.brand_name}</strong><small>{c.brand_tagline}</small></span></Link><p>{c.footer_description}</p></footer>
+ </main>;
 }

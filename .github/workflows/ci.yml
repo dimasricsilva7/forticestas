@@ -1,0 +1,63 @@
+name: FortiCestas CI
+
+on:
+  push:
+    branches: [main, preview]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Lint and production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Dependency security audit
+        shell: bash
+        run: |
+          audit_status=0
+          timeout 45s npm audit --json > npm-audit.json || audit_status=$?
+          if [ "$audit_status" -ne 0 ]; then
+            echo "npm audit returned status $audit_status (the audit may be unavailable or timed out); lint and build will continue."
+          fi
+          node -e '
+            const fs = require("node:fs");
+            let report;
+            try {
+              report = JSON.parse(fs.readFileSync("npm-audit.json", "utf8"));
+            } catch {
+              console.log("Dependency audit did not return a valid JSON report. Run npm audit locally for details.");
+              process.exit(0);
+            }
+            const entries = Object.entries(report.vulnerabilities || {});
+            console.log("Dependency audit summary:", JSON.stringify(report.metadata?.vulnerabilities || {}));
+            for (const [name, item] of entries) {
+              console.log(JSON.stringify({
+                package: name,
+                severity: item.severity,
+                direct: item.isDirect,
+                range: item.range,
+                fixAvailable: item.fixAvailable
+              }));
+            }
+          '
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
