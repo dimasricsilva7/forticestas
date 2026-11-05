@@ -63,7 +63,7 @@ jobs:
             exit 1
           fi
 
-          if docker compose ps --services --status running 2>/dev/null | grep -qx web; then
+          if [ "$(docker inspect --format '{{.State.Running}}' forticestas 2>/dev/null || true)" = "true" ]; then
             sh scripts/backup-data.sh
           fi
 
