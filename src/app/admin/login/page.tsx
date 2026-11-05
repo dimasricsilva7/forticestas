@@ -4,7 +4,7 @@ import { signInAdmin } from "./actions";
 
 const messages: Record<string, string> = {
   "preencha-os-campos": "Informe e-mail e senha.",
-  "supabase-nao-configurado": "O Supabase ainda não foi configurado neste projeto.",
+  "admin-nao-configurado": "O acesso administrativo ainda não foi configurado no servidor.",
   "credenciais-invalidas": "E-mail ou senha inválidos.",
   "nao-foi-possivel-validar": "Não foi possível validar sua sessão. Tente novamente.",
   "usuario-sem-permissao": "O usuário autenticado ainda não foi autorizado como administrador."
@@ -25,7 +25,7 @@ export default async function AdminLoginPage({
         <div className="mt-8">
           <span className="quiz-kicker">Acesso restrito</span>
           <h1>Entrar no painel</h1>
-          <p className="quiz-sub">Área exclusiva para usuários cadastrados e autorizados pela administração.</p>
+          <p className="quiz-sub">Entre com o e-mail e a senha definidos nas variáveis privadas do servidor.</p>
         </div>
         <form action={signInAdmin} className="grid gap-4">
           <label className="grid gap-2 text-sm font-bold">E-mail
@@ -37,7 +37,7 @@ export default async function AdminLoginPage({
           {message && <p role="alert" className="error-text">{message}</p>}
           <button type="submit" className="primary-btn w-full">Entrar no painel</button>
         </form>
-        <p className="text-xs text-gray-400 mt-6">Acesso protegido por Supabase Auth e lista de administradores.</p>
+        <p className="text-xs text-gray-400 mt-6">Acesso protegido por sessão administrativa segura.</p>
       </section>
     </main>
   );
