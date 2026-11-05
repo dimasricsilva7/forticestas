@@ -4,9 +4,11 @@ out
 .env
 .env.local
 .env.*.local
+.env.production
 .vercel
 .DS_Store
 *.log
+/backups/
 
 # Local order and catalogue store
 /data/forticestas.json
