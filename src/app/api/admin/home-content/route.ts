@@ -27,7 +27,7 @@ export async function PUT(request:NextRequest){
   const value=content[key].trim();
   if(value&&!(value.startsWith("/")&&!value.startsWith("//"))&&!/^https:\/\//i.test(value))return NextResponse.json({error:"As imagens precisam usar um caminho local ou uma URL HTTPS."},{status:400});
  }
- const linkKeys=["header_button_url","hero_primary_url","hero_secondary_url","quiz_banner_button_url"] as const;
+ const linkKeys=["nav_home_url","nav_catalog_url","nav_quiz_url","header_button_url","hero_primary_url","hero_secondary_url","catalog_link_url","quiz_banner_button_url"] as const;
  for(const key of linkKeys){
   const value=content[key].trim();
   if(value&&!(value.startsWith("/")&&!value.startsWith("//"))&&!/^https:\/\//i.test(value)&&!/^mailto:/i.test(value)&&!/^tel:/i.test(value))return NextResponse.json({error:"Os links dos botões devem ser internos, HTTPS, e-mail ou telefone."},{status:400});
