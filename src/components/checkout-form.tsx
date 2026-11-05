@@ -36,6 +36,7 @@ export default function CheckoutForm({ basket, content }: { basket: CheckoutBask
   function handlePhoneChange(value:string) {
     const digits=value.replace(/\\D/g,"");
     if(digits.length>11) {
+      setCustomer({...customer,phone:""});
       setPhoneError("Digite somente um número de telefone com DDD.");
       return;
     }
