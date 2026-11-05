@@ -47,7 +47,7 @@ function ImageField({label,value,onChange}:ImageFieldProps){
   catch(error){setMessage(error instanceof Error?error.message:"Não foi possível enviar a imagem.");}
   finally{setUploading(false);}
  }
- return <div className="image-field"><label>{label} — URL<input type="url" placeholder="https://... ou /api/media/..." value={value} onChange={event=>onChange(event.target.value)}/></label><label>Ou envie um arquivo<input type="file" accept="image/png,image/jpeg,image/webp,image/avif,image/gif" disabled={uploading} onChange={event=>void upload(event.target.files?.[0])}/></label>{uploading&&<small>Enviando imagem...</small>}{message&&<small>{message}</small>}{value&&<Image src={value} alt="Prévia da imagem" width={220} height={140} unoptimized className="image-field-preview"/>}</div>;
+ return <div className="image-field"><label>{label} — URL<input type="text" inputMode="url" placeholder="https://... ou /api/media/..." value={value} onChange={event=>onChange(event.target.value)}/></label><label>Ou envie um arquivo<input type="file" accept="image/png,image/jpeg,image/webp,image/avif,image/gif" disabled={uploading} onChange={event=>void upload(event.target.files?.[0])}/></label>{uploading&&<small>Enviando imagem...</small>}{message&&<small>{message}</small>}{value&&<Image src={value} alt="Prévia da imagem" width={220} height={140} unoptimized className="image-field-preview"/>}</div>;
 }
 
 const homeGroups:{title:string;fields:{key:keyof HomeContent;label:string;multiline?:boolean;image?:boolean}[]}[]=[
