@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ArrowRight, BadgeCheck, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { STARTER_BASKETS } from "@/lib/catalog";
@@ -164,8 +165,16 @@ export default function ResultPage() {
             <div className="recommendation-list">
               {rankedBaskets.slice(0, 3).map((basket, index) => (
                 <article className={index === 0 ? "recommendation-card recommended" : "recommendation-card"} key={basket.id}>
+                  {index === 0 && (
+                    <div className="recommendation-featured-banner">
+                      <span className="recommendation-featured-icon"><BadgeCheck size={24} strokeWidth={2.2}/></span>
+                      <div>
+                        <strong>{content.result_recommended_label}</strong>
+                        <small>Melhor combinação considerando seu perfil, orçamento e preferências.</small>
+                      </div>
+                    </div>
+                  )}
                   <div className="recommendation-image"><Image src={basket.image_url || STARTER_BASKETS.find((item) => item.slug === basket.slug)?.image_url || "/images/hero.svg"} alt={"Ilustração da " + basket.name} fill unoptimized sizes="(max-width: 760px) 100vw, 680px" /></div>
-                  {index === 0 && <span className="recommendation-label">{content.result_recommended_label}</span>}
                   <div className="recommendation-card-heading">
                     <div>
                       <span className="recommendation-category">{categoryLabels[basket.category]}</span>
@@ -176,11 +185,11 @@ export default function ResultPage() {
                   <p>{basket.description}</p>
                   {basket.reasons.length > 0 && (
                     <ul className="recommendation-reasons">
-                      {basket.reasons.map((reason) => <li key={reason}>✓ {reason}</li>)}
+                      {basket.reasons.map((reason) => <li key={reason}><CheckCircle2 size={16} strokeWidth={2.2}/><span>{reason}</span></li>)}
                     </ul>
                   )}
                   <Link href={"/cestas/" + basket.slug} className="primary-btn mt-3">
-                    {content.result_item_button} →
+                    {content.result_item_button} <ArrowRight size={17} strokeWidth={2.2}/>
                   </Link>
                 </article>
               ))}
