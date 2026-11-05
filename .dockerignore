@@ -1,0 +1,12 @@
+.git
+.github
+node_modules
+.next
+.vercel
+.env
+.env.*
+!.env.production.example
+data
+backups
+*.log
+npm-debug.log*
