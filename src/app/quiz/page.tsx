@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import {DEFAULT_HOME_CONTENT,type HomeContent} from "@/lib/home-content";
 
 type QuizOption = { value: string; description: string };
 type QuizStep = {
@@ -106,12 +107,14 @@ export default function QuizPage() {
   const [loading, setLoading] = useState(false);
   const [configLoading, setConfigLoading] = useState(true);
   const [quizSteps, setQuizSteps] = useState<QuizStep[]>(fallbackSteps);
+  const [content,setContent]=useState<HomeContent>({...DEFAULT_HOME_CONTENT});
 
   useEffect(() => {
     let active = true;
     fetch("/api/quiz-config", { cache: "no-store", signal: AbortSignal.timeout(5000) })
       .then((response) => response.ok ? response.json() : Promise.reject())
       .then((data: { questions?: Array<{
+        content?:HomeContent;
         question_key: string;
         title: string;
         subtitle: string;
@@ -138,6 +141,7 @@ export default function QuizPage() {
             multi: Boolean(question.multi),
             required: question.required !== false,
           }));
+        if (active && data.content) setContent({...DEFAULT_HOME_CONTENT,...data.content});
         if (active && configured.length) {
           setQuizSteps(configured);
         }
@@ -235,8 +239,8 @@ export default function QuizPage() {
       <section className="quiz-card">
         <header className="flex items-center justify-between gap-3">
           <Link href="/" className="forti-brand">
-            <Image src="/images/logo.svg" alt="" width={38} height={38} />
-            <span><strong>FortiCestas</strong><small>Cestas básicas para sua família</small></span>
+            <Image src={content.logo_url||"/images/logo.svg"} alt="" width={38} height={38} unoptimized />
+            <span><strong>{content.brand_name}</strong><small>{content.brand_tagline}</small></span>
           </Link>
           <span className="text-xs text-gray-500">
             {configLoading ? "Preparando quiz..." : `Etapa ${Math.min(step + 1, quizSteps.length + 1)} de ${quizSteps.length + 1}`}
@@ -262,7 +266,7 @@ export default function QuizPage() {
           </div>
         ) : step < quizSteps.length ? (
           <>
-            <span className="quiz-kicker">Vamos encontrar sua cesta</span>
+            <span className="quiz-kicker">{content.quiz_step_kicker}</span>
             <h1>{current.title}</h1>
             <p className="quiz-sub">{current.subtitle}</p>
             <div className="choice-list">
@@ -302,29 +306,25 @@ export default function QuizPage() {
                 className="secondary-btn"
                 onClick={() => step === 0 ? router.push("/") : setStep((value) => value - 1)}
               >
-                Voltar
+                {content.quiz_back_button}
               </button>
               <button type="button" className="primary-btn" onClick={next}>
-                {step === quizSteps.length - 1 ? "Continuar para o CEP →" : "Continuar →"}
+                {step === quizSteps.length - 1 ? content.quiz_continue_cep_button+" →" : content.quiz_continue_button+" →"}
               </button>
             </div>
           </>
         ) : (
           <>
-            <span className="quiz-kicker">Última etapa</span>
-            <h1>Para onde enviamos sua cesta?</h1>
-            <p className="quiz-sub">
-              Informe seu CEP para identificar a região de entrega. O valor e o prazo do frete serão confirmados antes do pagamento.
-            </p>
-            <label className="mb-2 block text-sm font-bold" htmlFor="cep">
-              CEP
-            </label>
+            <span className="quiz-kicker">{content.quiz_last_kicker}</span>
+            <h1>{content.quiz_last_title}</h1>
+            <p className="quiz-sub">{content.quiz_last_description}</p>
+            <label className="mb-2 block text-sm font-bold" htmlFor="cep">{content.quiz_cep_label}</label>
             <input
               id="cep"
               className="text-input"
               inputMode="numeric"
               autoComplete="postal-code"
-              placeholder="00000-000"
+              placeholder={content.quiz_cep_placeholder}
               value={cep}
               onChange={(event) => setCep(formatCep(event.target.value))}
               maxLength={9}
@@ -346,11 +346,11 @@ export default function QuizPage() {
                 disabled={loading}
                 onClick={submitCep}
               >
-                {loading ? "Consultando CEP..." : "Ver minha recomendação →"}
+                {loading ? content.quiz_loading_button : content.quiz_submit_button+" →"}
               </button>
             </div>
             <p className="quiz-privacy-note">
-              Usaremos o CEP apenas para identificar sua região e preparar a consulta de entrega.
+              {content.quiz_privacy_note}
             </p>
           </>
         )}
