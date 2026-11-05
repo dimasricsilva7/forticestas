@@ -58,14 +58,22 @@ sh scripts/backup-data.sh
 
 O arquivo de backup será salvo em `backups/`. Copie esses arquivos para outro destino seguro. Para restaurar, pare o serviço, extraia o backup no volume `forticestas_data` e inicie novamente.
 
-### Atualizações
+### Deploy manual pelo GitHub Actions
 
-Depois de atualizar o código no GitHub:
+Depois do primeiro bootstrap do VPS descrito acima, é possível publicar atualizações sem compartilhar a chave SSH no chat. Em **GitHub → Settings → Secrets and variables → Actions**, crie:
 
-```bash
-git pull origin main
-docker compose up -d --build
-```
+- `VPS_HOST`: IP ou hostname SSH do VPS.
+- `VPS_USER`: usuário SSH do servidor.
+- `VPS_SSH_KEY`: chave privada SSH do runner.
+- `VPS_SSH_KNOWN_HOSTS`: linha de host key do servidor, obtida previamente com `ssh-keyscan -H SEU_HOST`.
+- `VPS_SSH_PORT`: opcional; padrão 22.
+
+A chave pública correspondente precisa estar no `~/.ssh/authorized_keys` do usuário do VPS. Esse usuário deve poder executar Docker e Docker Compose sem prompt interativo. Não envie nem comite a chave privada.
+
+Depois, execute **GitHub → Actions → Deploy FortiCestas to VPS → Run workflow**. O fluxo verifica a conexão SSH, faz backup do volume de dados quando a aplicação já está em execução, atualiza o código de `main`, reconstrói o contêiner e valida `/api/health`. A publicação é manual, não automática.
+
+O arquivo privado `.env` deve estar previamente configurado em `$HOME/forticestas` no servidor. O workflow não cria nem sobrescreve credenciais.
+
 
 ### Persistência e concorrência
 
@@ -75,7 +83,7 @@ O armazenamento JSON usa uma fila de escrita dentro do processo Node. Por isso, 
 
 Acesse `/admin/login` com o e-mail e a senha configurados no arquivo privado `.env`. O painel inclui:
 
-- Edição do conteúdo da página inicial: identidade, cabeçalho, navegação, títulos, textos, botões, links, benefícios, catálogo, banner do quiz e rodapé.
+- Edição de conteúdo nas páginas públicas: home, catálogo, detalhe da cesta, quiz, resultado, checkout, identidade, títulos, textos, imagens, botões, links, benefícios e rodapé.
 - Edição de imagens por URL HTTPS ou upload de JPG, PNG, WEBP, AVIF e GIF (até 8 MB).
 - Gerenciamento de produtos, cestas, composição, perguntas do quiz e pedidos.
 - Imagens enviadas pelo painel são gravadas no volume persistente do servidor.
