@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { STARTER_BASKETS } from "@/lib/catalog";
 import { rankBaskets, type QuizAnswers } from "@/lib/recommendation";
+import {DEFAULT_HOME_CONTENT,type HomeContent} from "@/lib/home-content";
 
 type Answers = Record<string, string | string[]>;
 type Basket = {
@@ -40,6 +41,7 @@ export default function ResultPage() {
   const [baskets, setBaskets] = useState<Basket[]>([]);
   const [loading, setLoading] = useState(true);
   const [catalogError, setCatalogError] = useState("");
+  const [content,setContent]=useState<HomeContent>({...DEFAULT_HOME_CONTENT});
 
   useEffect(() => {
     let active = true;
@@ -60,9 +62,10 @@ export default function ResultPage() {
         if (!response.ok) throw new Error("Não foi possível consultar o catálogo.");
         return response.json();
       })
-      .then((data: { baskets?: Basket[]; error?: string }) => {
+      .then((data: { baskets?: Basket[]; error?: string; content?:HomeContent }) => {
         if (!active) return;
         setBaskets(data.baskets || []);
+        if(data.content)setContent({...DEFAULT_HOME_CONTENT,...data.content});
         if (data.error) setCatalogError(data.error);
       })
       .catch((caught) => {
@@ -77,7 +80,7 @@ export default function ResultPage() {
     return () => { active = false; };
   }, []);
 
-  const quizAnswers: QuizAnswers = {
+  const quizAnswers: QuizAnswers = useMemo(() => ({
     household: typeof answers.household === "string" ? answers.household : undefined,
     goal: typeof answers.goal === "string" ? answers.goal : undefined,
     foods: Array.isArray(answers.foods)
@@ -86,7 +89,7 @@ export default function ResultPage() {
     budget: typeof answers.budget === "string" ? answers.budget : undefined,
     frequency: typeof answers.frequency === "string" ? answers.frequency : undefined,
     basket: typeof answers.basket === "string" ? answers.basket : undefined,
-  };
+  }),[answers]);
   const ranked = useMemo(
     () => rankBaskets(
       baskets.map((basket) => ({
@@ -120,13 +123,11 @@ export default function ResultPage() {
   return (
     <main className="quiz-wrap">
       <section className="quiz-card result-card">
-        <Link href="/" className="forti-brand"><Image src="/images/logo.svg" alt="" width={38} height={38}/><span><strong>FortiCestas</strong><small>Cestas básicas para sua família</small></span></Link>
+        <Link href="/" className="forti-brand"><Image src={content.logo_url||"/images/logo.svg"} alt="" width={38} height={38} unoptimized/><span><strong>{content.brand_name}</strong><small>{content.brand_tagline}</small></span></Link>
         <div className="mt-8">
-          <span className="quiz-kicker">Perfil concluído</span>
-          <h1>Encontramos opções para sua família.</h1>
-          <p className="quiz-sub">
-            Consideramos seu orçamento, o tamanho da família, os alimentos escolhidos e o tipo de cesta preferido.
-          </p>
+          <span className="quiz-kicker">{content.result_kicker}</span>
+          <h1>{content.result_title}</h1>
+          <p className="quiz-sub">{content.result_description}</p>
 
           {answeredItems.length > 0 && (
             <div className="profile-summary">
@@ -142,29 +143,29 @@ export default function ResultPage() {
 
           <div className="result-section-heading">
             <div>
-              <span className="quiz-kicker">Recomendação personalizada</span>
-              <h2>As cestas mais alinhadas ao seu perfil</h2>
+              <span className="quiz-kicker">{content.result_recommendation_kicker}</span>
+              <h2>{content.result_recommendation_title}</h2>
             </div>
           </div>
 
           {loading ? (
             <div className="quiz-loading" aria-live="polite">
               <span className="quiz-spinner" />
-              <strong>Analisando suas respostas...</strong>
-              <p>Comparando seu perfil com as cestas disponíveis no catálogo.</p>
+              <strong>{content.result_loading_title}</strong>
+              <p>{content.result_loading_description}</p>
             </div>
           ) : catalogError ? (
             <div className="empty-state mt-4">
-              <h2>Não foi possível carregar as cestas agora.</h2>
+              <h2>{content.result_failed_title}</h2>
               <p>{catalogError}</p>
-              <button className="secondary-btn mt-3" onClick={() => window.location.reload()}>Tentar novamente</button>
+              <button className="secondary-btn mt-3" onClick={() => window.location.reload()}>{content.result_retry_button}</button>
             </div>
           ) : rankedBaskets.length ? (
             <div className="recommendation-list">
               {rankedBaskets.slice(0, 3).map((basket, index) => (
                 <article className={index === 0 ? "recommendation-card recommended" : "recommendation-card"} key={basket.id}>
                   <div className="recommendation-image"><Image src={basket.image_url || STARTER_BASKETS.find((item) => item.slug === basket.slug)?.image_url || "/images/hero.svg"} alt={"Ilustração da " + basket.name} fill unoptimized sizes="(max-width: 760px) 100vw, 680px" /></div>
-                  {index === 0 && <span className="recommendation-label">Mais alinhada ao seu perfil</span>}
+                  {index === 0 && <span className="recommendation-label">{content.result_recommended_label}</span>}
                   <div className="recommendation-card-heading">
                     <div>
                       <span className="recommendation-category">{categoryLabels[basket.category]}</span>
@@ -179,31 +180,31 @@ export default function ResultPage() {
                     </ul>
                   )}
                   <Link href={"/cestas/" + basket.slug} className="primary-btn mt-3">
-                    Ver composição da cesta →
+                    {content.result_item_button} →
                   </Link>
                 </article>
               ))}
             </div>
           ) : (
             <div className="empty-state mt-4">
-              <h2>Estamos preparando as primeiras cestas.</h2>
-              <p>Seu perfil foi concluído, mas ainda não há cestas publicadas no catálogo. Volte em breve para ver as opções.</p>
-              <Link href="/cestas" className="secondary-btn mt-3">Abrir catálogo</Link>
+              <h2>{content.result_empty_title}</h2>
+              <p>{content.result_empty_description}</p>
+              <Link href="/cestas" className="secondary-btn mt-3">{content.result_catalog_button}</Link>
             </div>
           )}
 
           <div className="result-address">
-            <h3>Região informada</h3>
+            <h3>{content.result_address_title}</h3>
             <p>{cep ? `${cep.slice(0, 5)}-${cep.slice(5)} · ${address.localidade || ""} / ${address.uf || ""}` : "CEP não informado"}</p>
             {(address.logradouro || address.bairro) && (
               <p>{[address.logradouro, address.bairro].filter(Boolean).join(" · ")}</p>
             )}
-            <small>O frete e o prazo exatos serão calculados no checkout, antes do pagamento.</small>
+            <small>{content.result_address_note}</small>
           </div>
 
           <div className="flex flex-wrap gap-3 mt-6">
-            <Link href="/quiz" className="primary-btn">Refazer meu perfil</Link>
-            <Link href="/cestas" className="secondary-btn">Ver todo o catálogo</Link>
+            <Link href="/quiz" className="primary-btn">{content.result_reset_button}</Link>
+            <Link href="/cestas" className="secondary-btn">{content.result_catalog_button}</Link>
           </div>
         </div>
       </section>
