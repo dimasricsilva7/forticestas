@@ -10,7 +10,7 @@ export const STARTER_BASKETS:CatalogBasket[]=[
  {
   id:"starter-basica",name:"Cesta Básica",slug:"cesta-basica",category:"basic",
   description:"O essencial para reforçar a despensa com os alimentos mais usados no dia a dia.",
-  price_cents:8990,image_url:"/images/baskets/basica.svg",supported_households:["1 pessoa","2 pessoas"],
+  price_cents:9990,image_url:"/images/baskets/basica.svg",supported_households:["1 pessoa","2 pessoas"],
   food_tags:["Arroz e feijão","Massas e molhos","Óleo e temperos"],position:1,
   items:[
    {name:"Arroz tipo 1",quantity:1,unit:"pacote de 2 kg"},
@@ -28,7 +28,7 @@ export const STARTER_BASKETS:CatalogBasket[]=[
  {
   id:"starter-economica",name:"Cesta Econômica",slug:"cesta-economica",category:"economic",
   description:"Mais unidades dos itens de maior giro, com uma seleção equilibrada para economizar.",
-  price_cents:15990,image_url:"/images/baskets/economica.svg",supported_households:["1 pessoa","2 pessoas","3 a 4 pessoas"],
+  price_cents:12990,image_url:"/images/baskets/economica.svg",supported_households:["1 pessoa","2 pessoas","3 a 4 pessoas"],
   food_tags:["Arroz e feijão","Massas e molhos","Café e açúcar","Óleo e temperos","Biscoitos e complementos"],
   position:2,highlight:"Bom custo-benefício",
   items:[
@@ -51,7 +51,7 @@ export const STARTER_BASKETS:CatalogBasket[]=[
  {
   id:"starter-tradicional",name:"Cesta Tradicional",slug:"cesta-tradicional",category:"traditional",
   description:"Uma compra mais reforçada, com variedade de mercearia para a rotina da família.",
-  price_cents:23990,image_url:"/images/baskets/tradicional.svg",supported_households:["2 pessoas","3 a 4 pessoas","5 pessoas ou mais"],
+  price_cents:18990,image_url:"/images/baskets/tradicional.svg",supported_households:["2 pessoas","3 a 4 pessoas","5 pessoas ou mais"],
   food_tags:["Arroz e feijão","Massas e molhos","Café e açúcar","Óleo e temperos","Biscoitos e complementos"],
   position:3,highlight:"Equilíbrio entre variedade e quantidade",
   items:[
@@ -78,7 +78,7 @@ export const STARTER_BASKETS:CatalogBasket[]=[
  {
   id:"starter-completa",name:"Cesta Completa",slug:"cesta-completa",category:"complete",
   description:"Nossa seleção mais robusta, com mais itens e quantidades para uma despensa bem abastecida.",
-  price_cents:34990,image_url:"/images/baskets/completa.svg",supported_households:["3 a 4 pessoas","5 pessoas ou mais"],
+  price_cents:21990,image_url:"/images/baskets/completa.svg",supported_households:["3 a 4 pessoas","5 pessoas ou mais"],
   food_tags:["Arroz e feijão","Massas e molhos","Café e açúcar","Óleo e temperos","Biscoitos e complementos"],
   position:4,highlight:"Maior variedade",
   items:[
