@@ -49,7 +49,15 @@ function normalizeStore(parsed:unknown):LocalStore{
  if(store.version!==1||!Array.isArray(store.products)||!Array.isArray(store.baskets)||!Array.isArray(store.orders)||!Array.isArray(store.quiz_questions))throw new Error("O arquivo da FortiCestas tem um formato inválido.");
  store.processed_payment_events=Array.isArray(store.processed_payment_events)?store.processed_payment_events:[];
  store.next_order_number=Number.isInteger(store.next_order_number)?store.next_order_number:1001;
- store.home_content={...DEFAULT_HOME_CONTENT,...(store.home_content||{})};
+ const savedHomeContent=store.home_content||{};
+ store.home_content={...DEFAULT_HOME_CONTENT,...savedHomeContent};
+ // Move the original starter hero to the newly designed family photo. Keep custom admin uploads untouched.
+ if(!savedHomeContent.hero_image_url||savedHomeContent.hero_image_url==="/images/hero.svg"){
+  store.home_content.hero_image_url="/images/hero-forticestas.svg";
+  store.home_content.hero_image_alt="Família reunida com uma cesta de alimentos FortiCestas";
+  store.home_content.hero_image_caption="FortiCestas";
+  store.home_content.hero_image_subtitle="Cestas básicas para o dia a dia da sua família";
+ }
  return store;
 }
 async function loadLocalStore():Promise<LocalStore>{
