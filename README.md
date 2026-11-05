@@ -1,42 +1,90 @@
 # FortiCestas
 
-Loja de cestas básicas com quatro composições iniciais, quiz de recomendação, painel administrativo, checkout Pix e frete grátis.
+Loja de cestas básicas com catálogo, quiz de recomendação, painel administrativo, checkout Pix pela BravoPay e frete grátis.
 
-## Armazenamento
+## Hospedagem de produção
 
-O catálogo, os produtos, as perguntas do quiz, o conteúdo editável da página inicial e os pedidos são salvos em um arquivo JSON no disco do servidor. Imagens enviadas pelo painel ficam em `FORTI_STORAGE_DIR/uploads`:
+A aplicação persiste catálogo, conteúdo da página, produtos, perguntas, pedidos e imagens em arquivos no disco. Ela precisa de um servidor Node.js com armazenamento persistente e deve rodar em **um único processo/contêiner**. Não use Vercel Serverless para receber pedidos com esta implementação: o disco das funções não é persistente e a aplicação recusa gravações nesse ambiente.
 
-\`FORTI_STORAGE_DIR/forticestas.json\`
+Foi incluído um setup Docker para VPS.
 
-Se \`FORTI_STORAGE_DIR\` não for informado, o aplicativo usa \`./data/forticestas.json\`. O arquivo é criado na primeira alteração salva pelo painel ou pelo checkout. Faça backup periódico desse arquivo.
+### Deploy em VPS com Docker
 
-**Hospedagem obrigatória:** use um servidor Node.js com diretório persistente e permissão de escrita (por exemplo, VPS ou hospedagem própria). A Vercel usa funções serverless e não mantém gravações feitas no disco local entre execuções; este modo de armazenamento não é compatível com a Vercel para operações reais. Não publique a loja com pedidos habilitados nesse ambiente, pois os pedidos não ficariam persistidos.
+Requisitos: Linux com Docker Engine e Docker Compose Plugin instalados; domínio apontado para o IP do servidor; proxy reverso HTTPS (Nginx ou Caddy).
 
-## Configuração
+1. Clone o repositório e entre na pasta:
 
-Requisitos: Node.js 22.x.
+   ```bash
+   git clone https://github.com/dimasricsilva7/forticestas.git
+   cd forticestas
+   git checkout main
+   ```
 
-1. Instale as dependências com \`npm install\`.
-2. Copie \`.env.example\` para \`.env.local\`.
-3. Configure:
-   - \`FORTI_STORAGE_DIR\`: diretório persistente gravável pelo processo Node.
-   - \`ADMIN_EMAIL\`, \`ADMIN_PASSWORD\` e \`ADMIN_SESSION_SECRET\`: credenciais do painel. O segredo precisa ter pelo menos 32 caracteres.
-   - \`BRAVOPAY_API_KEY\` e \`BRAVOPAY_WEBHOOK_SECRET\`: credenciais do Pix.
-   - \`NEXT_PUBLIC_SITE_URL\`: endereço público com HTTPS.
-4. Garanta que o usuário do processo Node tenha permissão de escrita no diretório de armazenamento.
-5. Execute \`npm run build\` e inicie com \`npm run start\` sob PM2 ou systemd.
+2. Crie o arquivo privado de variáveis:
 
-O login administrativo fica em \`/admin/login\`.
+   ```bash
+   cp .env.production.example .env
+   nano .env
+   ```
+
+3. Configure `NEXT_PUBLIC_SITE_URL` com o domínio final, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET`, `BRAVOPAY_API_KEY` e `BRAVOPAY_WEBHOOK_SECRET`. Gere um segredo de sessão com:
+
+   ```bash
+   openssl rand -base64 48
+   ```
+
+   Use uma senha administrativa forte e exclusiva. Nunca comite o arquivo `.env`.
+
+4. Construa e inicie o serviço:
+
+   ```bash
+   docker compose up -d --build
+   docker compose ps
+   ```
+
+5. Configure o proxy reverso para encaminhar HTTPS na porta 443 para `127.0.0.1:3000`. O serviço de aplicação escuta na porta 3000 e possui health check em `/api/health`.
+
+6. No painel BravoPay, cadastre o webhook `https://SEU-DOMINIO/api/webhooks/bravopay`. Faça uma cobrança real de baixo valor e confirme o evento recebido antes de aceitar pedidos reais.
+
+O volume Docker `forticestas_data` guarda `forticestas.json` e a pasta `uploads`; ele sobrevive a recriações do contêiner. Não remova esse volume ao atualizar a imagem.
+
+### Backup
+
+Execute periodicamente:
+
+```bash
+sh scripts/backup-data.sh
+```
+
+O arquivo de backup será salvo em `backups/`. Copie esses arquivos para outro destino seguro. Para restaurar, pare o serviço, extraia o backup no volume `forticestas_data` e inicie novamente.
+
+### Atualizações
+
+Depois de atualizar o código no GitHub:
+
+```bash
+git pull origin main
+docker compose up -d --build
+```
+
+### Persistência e concorrência
+
+O armazenamento JSON usa uma fila de escrita dentro do processo Node. Por isso, rode exatamente uma instância da aplicação e não habilite cluster/replicas múltiplas. Para escalar horizontalmente, será necessário migrar para um banco de dados transacional.
+
+## Painel administrativo
+
+Acesse `/admin/login` com o e-mail e a senha configurados no arquivo privado `.env`. O painel inclui:
+
+- Edição do conteúdo da página inicial: identidade, cabeçalho, navegação, títulos, textos, botões, links, benefícios, catálogo, banner do quiz e rodapé.
+- Edição de imagens por URL HTTPS ou upload de JPG, PNG, WEBP, AVIF e GIF (até 8 MB).
+- Gerenciamento de produtos, cestas, composição, perguntas do quiz e pedidos.
+- Imagens enviadas pelo painel são gravadas no volume persistente do servidor.
 
 ## Pix e frete
 
-O checkout cria uma cobrança Pix dinâmica pela BravoPay. Configure no painel da BravoPay o webhook:
+O checkout cria cobranças Pix dinâmicas pela BravoPay. As credenciais são exclusivamente server-side. O webhook valida a assinatura antes de atualizar o status de pagamento.
 
-\`https://SEU-DOMINIO/api/webhooks/bravopay\`
-
-O endpoint valida a assinatura HMAC antes de mudar o status de um pedido. Pagamentos confirmados, expirados, reembolsados e chargebacks atualizam o arquivo local.
-
-O frete está definido como grátis: o total enviado à BravoPay é igual ao preço da cesta. O CEP e o endereço continuam sendo solicitados para registrar o destino da entrega.
+O frete está configurado como grátis: o total cobrado é igual ao preço da cesta. O lojista deve validar a cobertura, prazos e custo real da entrega antes de receber pedidos.
 
 ## Catálogo inicial
 
@@ -47,10 +95,15 @@ O frete está definido como grátis: o total enviado à BravoPay é igual ao pre
 | Tradicional | R$ 239,90 |
 | Completa | R$ 349,90 |
 
-Os preços e a composição são sugestões iniciais, não cotações de fornecedores. Valide custo dos alimentos, embalagem, operação e margem antes de aceitar pedidos.
-
-O estoque fica disponível apenas no painel interno e não é exibido nas páginas públicas.
+Preços e composições são sugestões iniciais, não cotações de fornecedores. Valide custo dos alimentos, embalagem, operação, margem e prazos de entrega antes da abertura da loja.
 
 ## Desenvolvimento
 
-\`npm run dev\` inicia o ambiente local. As primeiras leituras usam o catálogo inicial; a primeira gravação cria \`data/forticestas.json\`.
+Requisitos: Node.js 22.x.
+
+```bash
+npm install
+npm run dev
+```
+
+O arquivo `data/forticestas.json` é criado na primeira gravação. Use `npm run lint` e `npm run build` antes de publicar alterações.
