@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { STARTER_BASKETS } from "@/lib/catalog";
+import { DEFAULT_HOME_CONTENT, type HomeContent } from "@/lib/home-content";
 
 export type LocalProduct={id:string;name:string;slug:string;description:string;sku:string|null;price_cents:number;stock_quantity:number;weight_grams:number;width_cm:number;height_cm:number;length_cm:number;image_url:string|null;active:boolean;created_at:string;updated_at:string};
 export type LocalBasketItem={product_id:string;quantity:number;unit?:string};
@@ -10,7 +11,7 @@ export type LocalBasket={id:string;name:string;slug:string;description:string;pr
 export type LocalQuizQuestion={id:string;question_key:string;title:string;subtitle:string;options:{value:string;description:string}[];multi:boolean;required:boolean;position:number;active:boolean};
 export type LocalOrderItem={product_name:string;sku:string|null;quantity:number;line_total_cents:number};
 export type LocalOrder={id:string;order_number:number;idempotency_key:string;customer_name:string;customer_email:string|null;customer_phone:string;cep:string;address:Record<string,unknown>;subtotal_cents:number;shipping_cents:number;total_cents:number;shipping_service:string;payment_status:"pending"|"paid"|"failed"|"refunded"|"chargeback";fulfillment_status:"pending"|"processing"|"shipped"|"delivered"|"cancelled";payment_reference:string|null;payment_payload:{copy_paste?:string;qr_code?:string|null;expires_at?:string}|null;order_items:LocalOrderItem[];created_at:string;updated_at:string;paid_at:string|null};
-export type LocalStore={version:1;products:LocalProduct[];baskets:LocalBasket[];quiz_questions:LocalQuizQuestion[];orders:LocalOrder[];processed_payment_events:string[];next_order_number:number};
+export type LocalStore={version:1;products:LocalProduct[];baskets:LocalBasket[];quiz_questions:LocalQuizQuestion[];orders:LocalOrder[];processed_payment_events:string[];next_order_number:number;home_content:HomeContent};
 
 function slugify(value:string){return value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");}
 function initialStore():LocalStore{
@@ -33,7 +34,7 @@ function initialStore():LocalStore{
   {id:"question-frequency",question_key:"frequency",title:"Com que frequência pretende comprar?",subtitle:"Queremos entender o ritmo ideal para sua casa.",options:[{value:"Uma vez",description:"Compra pontual"},{value:"Todo mês",description:"Reposição mensal"},{value:"A cada 15 dias",description:"Reposição quinzenal"}],multi:false,required:true,position:5,active:true},
   {id:"question-basket",question_key:"basket",title:"Qual tipo de cesta prefere?",subtitle:"Escolha o perfil de cesta que mais combina com o que procura.",options:[{value:"Básica",description:"Só o essencial para a despensa"},{value:"Econômica",description:"Mais itens com foco no orçamento"},{value:"Tradicional",description:"Equilíbrio entre quantidade e variedade"},{value:"Completa",description:"Nossa seleção mais robusta"}],multi:false,required:true,position:6,active:true}
  ];
- return {version:1,products,baskets,quiz_questions,orders:[],processed_payment_events:[],next_order_number:1001};
+ return {version:1,products,baskets,quiz_questions,orders:[],processed_payment_events:[],next_order_number:1001,home_content:{...DEFAULT_HOME_CONTENT}};
 }
 function storageFile(){return path.join(process.env.FORTI_STORAGE_DIR||path.join(process.cwd(),"data"),"forticestas.json");}
 function isVercelRuntime(){return process.env.VERCEL==="1"||process.env.VERCEL==="true";}
@@ -41,6 +42,7 @@ async function loadStore():Promise<LocalStore>{
  try{
   const parsed=JSON.parse(await readFile(storageFile(),"utf8")) as LocalStore;
   if(parsed.version!==1||!Array.isArray(parsed.products)||!Array.isArray(parsed.baskets)||!Array.isArray(parsed.orders))throw new Error("O arquivo local da FortiCestas tem um formato inválido.");
+  parsed.home_content={...DEFAULT_HOME_CONTENT,...(parsed.home_content||{})};
   return parsed;
  }catch(error){if((error as NodeJS.ErrnoException).code==="ENOENT")return initialStore();throw error;}
 }
