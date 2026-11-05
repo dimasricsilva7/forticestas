@@ -113,8 +113,7 @@ export default function QuizPage() {
     let active = true;
     fetch("/api/quiz-config", { cache: "no-store", signal: AbortSignal.timeout(5000) })
       .then((response) => response.ok ? response.json() : Promise.reject())
-      .then((data: { questions?: Array<{
-        content?:HomeContent;
+      .then((data: { content?:HomeContent; questions?: Array<{
         question_key: string;
         title: string;
         subtitle: string;
@@ -338,7 +337,7 @@ export default function QuizPage() {
                 onClick={() => setStep((value) => value - 1)}
                 disabled={loading}
               >
-                Voltar
+                {content.quiz_back_button}
               </button>
               <button
                 type="button"
