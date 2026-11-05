@@ -69,14 +69,14 @@ export default function CheckoutForm({ basket, content }: { basket: CheckoutBask
   if (payment) {
     return (
       <section className="checkout-panel">
-        <span className="eyebrow">Pedido #{payment.orderNumber}</span>
+        <span className="eyebrow">{content.checkout_order_number_prefix} #{payment.orderNumber}</span>
         <h2>{content.checkout_pix_title}</h2>
         <p className="section-lead">{content.checkout_pix_description}</p>
-        <div className="checkout-total"><span>{content.checkout_total_label}</span><strong>{money(payment.amountCents)}</strong></div><p className="text-xs text-green-700 font-bold">Frete grátis · R$ 0,00</p>
+        <div className="checkout-total"><span>{content.checkout_total_label}</span><strong>{money(payment.amountCents)}</strong></div><p className="text-xs text-green-700 font-bold">{content.checkout_free_shipping_label}</p>
         <label className="checkout-label" htmlFor="pix-code">{content.checkout_pix_code_label}</label>
         <textarea id="pix-code" className="text-input pix-code" readOnly value={payment.pix.copy_paste} rows={5}/>
         <button type="button" className="primary-btn" onClick={()=>void copyPix()}>{copied?content.checkout_pix_copied_button+" ✓":content.checkout_pix_copy_button}</button>
-        <p className="text-xs text-gray-500 mt-4">Validade: {new Date(payment.pix.expires_at).toLocaleString("pt-BR")}</p>
+        <p className="text-xs text-gray-500 mt-4">{content.checkout_expiration_note} {new Date(payment.pix.expires_at).toLocaleString("pt-BR")}</p>
         <p className="text-xs text-gray-500 mt-2">{content.checkout_payment_help}</p>
       </section>
     );
@@ -84,9 +84,9 @@ export default function CheckoutForm({ basket, content }: { basket: CheckoutBask
 
   return (
     <form className="checkout-panel" onSubmit={submit}>
-      <span className="eyebrow">Finalizar pedido</span>
+      <span className="eyebrow">{content.checkout_form_title}</span>
       <h2>{basket.name}</h2>
-      <div className="checkout-total"><span>Valor da cesta</span><strong>{money(basket.price_cents)}</strong></div><p className="text-xs text-green-700 font-bold">Frete grátis · R$ 0,00</p>
+      <div className="checkout-total"><span>{content.checkout_basket_value_label}</span><strong>{money(basket.price_cents)}</strong></div><p className="text-xs text-green-700 font-bold">Frete grátis · R$ 0,00</p>
       <div className="checkout-fields">
         <label className="checkout-label">{content.checkout_customer_name_label}<input className="text-input" required minLength={2} maxLength={120} autoComplete="name" value={customer.name} onChange={e=>setCustomer({...customer,name:e.target.value})}/></label>
         <div className="form-row">
