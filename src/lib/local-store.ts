@@ -12,7 +12,7 @@ export type LocalBasket={id:string;name:string;slug:string;description:string;pr
 export type LocalQuizQuestion={id:string;question_key:string;title:string;subtitle:string;options:{value:string;description:string}[];multi:boolean;required:boolean;position:number;active:boolean};
 export type LocalOrderItem={product_name:string;sku:string|null;quantity:number;line_total_cents:number};
 export type LocalOrder={id:string;order_number:number;idempotency_key:string;customer_name:string;customer_email:string|null;customer_phone:string;cep:string;address:Record<string,unknown>;subtotal_cents:number;shipping_cents:number;total_cents:number;shipping_service:string;payment_status:"pending"|"paid"|"failed"|"refunded"|"chargeback";fulfillment_status:"pending"|"processing"|"shipped"|"delivered"|"cancelled";payment_reference:string|null;payment_payload:{copy_paste?:string;qr_code?:string|null;expires_at?:string}|null;order_items:LocalOrderItem[];created_at:string;updated_at:string;paid_at:string|null};
-export type LocalStore={version:1;products:LocalProduct[];baskets:LocalBasket[];quiz_questions:LocalQuizQuestion[];orders:LocalOrder[];processed_payment_events:string[];next_order_number:number;home_content:HomeContent};
+export type LocalStore={version:1;catalog_pricing_revision:1;products:LocalProduct[];baskets:LocalBasket[];quiz_questions:LocalQuizQuestion[];orders:LocalOrder[];processed_payment_events:string[];next_order_number:number;home_content:HomeContent};
 
 function slugify(value:string){return value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");}
 function initialStore():LocalStore{
@@ -35,7 +35,7 @@ function initialStore():LocalStore{
   {id:"question-frequency",question_key:"frequency",title:"Com que frequência pretende comprar?",subtitle:"Queremos entender o ritmo ideal para sua casa.",options:[{value:"Uma vez",description:"Compra pontual"},{value:"Todo mês",description:"Reposição mensal"},{value:"A cada 15 dias",description:"Reposição quinzenal"}],multi:false,required:true,position:5,active:true},
   {id:"question-basket",question_key:"basket",title:"Qual tipo de cesta prefere?",subtitle:"Escolha o perfil de cesta que mais combina com o que procura.",options:[{value:"Básica",description:"Só o essencial para a despensa"},{value:"Econômica",description:"Mais itens com foco no orçamento"},{value:"Tradicional",description:"Equilíbrio entre quantidade e variedade"},{value:"Completa",description:"Nossa seleção mais robusta"}],multi:false,required:true,position:6,active:true}
  ];
- return {version:1,products,baskets,quiz_questions,orders:[],processed_payment_events:[],next_order_number:1001,home_content:{...DEFAULT_HOME_CONTENT}};
+ return {version:1,catalog_pricing_revision:1,products,baskets,quiz_questions,orders:[],processed_payment_events:[],next_order_number:1001,home_content:{...DEFAULT_HOME_CONTENT}};
 }
 function storageFile(){return path.join(process.env.FORTI_STORAGE_DIR||path.join(process.cwd(),"data"),"forticestas.json");}
 const BLOB_STORE_PATH="data/forticestas.json";
@@ -64,7 +64,12 @@ function normalizeStore(parsed:unknown):LocalStore{
  return store;
 }
 async function loadLocalStore():Promise<LocalStore>{
- try{return normalizeStore(JSON.parse(await readFile(storageFile(),"utf8")) as unknown);}
+ try{
+  const parsed=JSON.parse(await readFile(storageFile(),"utf8")) as LocalStore;
+  const migrated=normalizeStore(parsed);
+  if(parsed.catalog_pricing_revision!==1)await persistLocalStore(migrated);
+  return migrated;
+ }
  catch(error){if((error as NodeJS.ErrnoException).code==="ENOENT")return initialStore();throw error;}
 }
 async function loadBlobSnapshot():Promise<{store:LocalStore;etag:string|null}>{
@@ -72,7 +77,14 @@ async function loadBlobSnapshot():Promise<{store:LocalStore;etag:string|null}>{
  const result=await getBlob(BLOB_STORE_PATH,{access:"private",useCache:false});
  if(!result)return {store:initialStore(),etag:null};
  const json=await new Response(result.stream).text();
- return {store:normalizeStore(JSON.parse(json) as unknown),etag:result.blob.etag||null};
+ const parsed=JSON.parse(json) as LocalStore;
+ const store=normalizeStore(parsed);
+ let etag=result.blob.etag||null;
+ if(parsed.catalog_pricing_revision!==1){
+  try{const saved=await saveBlobSnapshot(store,etag);etag=saved.etag;}
+  catch(error){if(isBlobConflict(error))return loadBlobSnapshot();throw error;}
+ }
+ return {store,etag};
 }
 async function saveBlobSnapshot(store:LocalStore,etag:string|null){
  return putBlob(BLOB_STORE_PATH,JSON.stringify(store),{
