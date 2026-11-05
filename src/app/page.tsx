@@ -10,7 +10,7 @@ export default async function HomePage(){
  return <main className="page-shell">
   <header className="topbar forti-topbar">
    <Link href="/" className="forti-brand" aria-label={c.brand_name+" - início"}><Image src={c.logo_url||"/images/logo.svg"} alt="" width={48} height={48} priority unoptimized/><span><strong>{c.brand_name}</strong><small>{c.brand_tagline}</small></span></Link>
-   <nav className="forti-nav" aria-label="Navegação principal"><Link href="/">{c.nav_home_label}</Link><Link href="/cestas">{c.nav_catalog_label}</Link><Link href="/quiz">{c.nav_quiz_label}</Link></nav>
+   <nav className="forti-nav" aria-label="Navegação principal"><Link href={c.nav_home_url}>{c.nav_home_label}</Link><Link href={c.nav_catalog_url}>{c.nav_catalog_label}</Link><Link href={c.nav_quiz_url}>{c.nav_quiz_label}</Link></nav>
    <Link href={c.header_button_url} className="header-cta">{c.header_button_text} <span aria-hidden>→</span></Link>
   </header>
   <section className="forti-hero">
@@ -18,7 +18,7 @@ export default async function HomePage(){
     <h1>{c.hero_title} <em>{c.hero_highlight}</em></h1>
     <p>{c.hero_description}</p>
     <div className="forti-hero-actions"><Link href={c.hero_primary_url} className="primary-btn">{c.hero_primary_text} <span aria-hidden>→</span></Link><Link href={c.hero_secondary_url} className="secondary-btn">{c.hero_secondary_text}</Link></div>
-    <div className="forti-trust-row"><span><b>✓</b> Composição transparente</span><span><b>✓</b> Frete grátis</span><span><b>✓</b> Pagamento via Pix</span></div>
+    <div className="forti-trust-row"><span><b>✓</b> {c.trust_one_text}</span><span><b>✓</b> {c.trust_two_text}</span><span><b>✓</b> {c.trust_three_text}</span></div>
    </div>
    <div className="forti-hero-image"><Image src={c.hero_image_url||"/images/hero.svg"} alt={c.hero_image_alt} fill priority unoptimized sizes="(max-width: 760px) 100vw, 52vw"/><div className="hero-image-caption"><span>{c.hero_image_caption}</span><small>{c.hero_image_subtitle}</small></div></div>
   </section>
@@ -28,7 +28,7 @@ export default async function HomePage(){
    <div><span className="benefit-emoji">{c.benefit_three_icon}</span><strong>{c.benefit_three_title}</strong><small>{c.benefit_three_description}</small></div>
   </section>
   <section className="section forti-catalog-section" id="cestas">
-   <div className="forti-section-heading"><div><span className="eyebrow">{c.catalog_eyebrow}</span><h2>{c.catalog_title}</h2><p className="section-lead">{c.catalog_description}</p></div><Link href="/cestas" className="text-link">{c.catalog_link_text}</Link></div>
+   <div className="forti-section-heading"><div><span className="eyebrow">{c.catalog_eyebrow}</span><h2>{c.catalog_title}</h2><p className="section-lead">{c.catalog_description}</p></div><Link href={c.catalog_link_url} className="text-link">{c.catalog_link_text}</Link></div>
    <div className="forti-product-grid">{baskets.map((basket)=><article className="forti-product-card" key={basket.slug}>
     <Link href={"/cestas/"+basket.slug} className="forti-product-image"><Image src={basket.image_url} alt={"Imagem da "+basket.name} fill unoptimized sizes="(max-width: 760px) 90vw, 25vw"/></Link>
     <div className="forti-product-body"><div className="product-topline"><span>{basket.item_count} tipos de itens</span><span>{basket.supported_households[0]||"Várias famílias"}</span></div><h3>{basket.name}</h3><p>{basket.description}</p><strong className="product-price">{formatBRL(basket.price_cents)}</strong><Link href={"/cestas/"+basket.slug} className="product-link">{c.basket_card_button_text} <span aria-hidden>→</span></Link></div>
