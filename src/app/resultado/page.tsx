@@ -123,7 +123,7 @@ export default function ResultPage() {
   return (
     <main className="quiz-wrap">
       <section className="quiz-card result-card">
-        <Link href="/" className="forti-brand"><Image src="/images/logo.svg" alt="" width={38} height={38}/><span><strong>FortiCestas</strong><small>Cestas básicas para sua família</small></span></Link>
+        <Link href="/" className="forti-brand"><Image src={content.logo_url||"/images/logo.svg"} alt="" width={38} height={38} unoptimized/><span><strong>{content.brand_name}</strong><small>{content.brand_tagline}</small></span></Link>
         <div className="mt-8">
           <span className="quiz-kicker">{content.result_kicker}</span>
           <h1>{content.result_title}</h1>
