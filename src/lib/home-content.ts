@@ -92,7 +92,24 @@ export const DEFAULT_HOME_CONTENT = {
   checkout_description: "Informe os dados de contato e o endereço de entrega. O frete é grátis para o endereço informado.",
   checkout_trust_one: "Dados protegidos",
   checkout_trust_two: "Pix pela BravoPay",
-  checkout_trust_three: "Frete grátis"
+  checkout_trust_three: "Frete grátis",
+  checkout_pix_title: "Pix gerado",
+  checkout_pix_description: "Finalize o pagamento no aplicativo do seu banco. O pedido só será confirmado depois que a BravoPay enviar a confirmação segura.",
+  checkout_total_label: "Total do pedido",
+  checkout_pix_code_label: "Pix copia e cola",
+  checkout_pix_copy_button: "Copiar código Pix",
+  checkout_pix_copied_button: "Código copiado",
+  checkout_customer_name_label: "Nome completo",
+  checkout_customer_email_label: "E-mail",
+  checkout_customer_phone_label: "WhatsApp",
+  checkout_cep_label: "CEP",
+  checkout_number_label: "Número",
+  checkout_complement_label: "Complemento (opcional)",
+  checkout_submit_button: "Continuar para pagamento Pix",
+  checkout_loading_button: "Gerando Pix...",
+  checkout_shipping_note: "Frete grátis: nenhum valor de entrega será adicionado ao total. O pagamento é realizado via Pix.",
+  checkout_expiration_note: "Validade: a data e horário aparecem abaixo do código Pix.",
+  checkout_payment_help: "Não feche esta página antes de copiar o código. A confirmação pode levar alguns instantes após o pagamento."
 } as const;
 
 export type HomeContent = { [Key in keyof typeof DEFAULT_HOME_CONTENT]: string };
