@@ -35,7 +35,7 @@ function initialStore():LocalStore{
   {id:"question-frequency",question_key:"frequency",title:"Com que frequência pretende comprar?",subtitle:"Queremos entender o ritmo ideal para sua casa.",options:[{value:"Uma vez",description:"Compra pontual"},{value:"Todo mês",description:"Reposição mensal"},{value:"A cada 15 dias",description:"Reposição quinzenal"}],multi:false,required:true,position:5,active:true},
   {id:"question-basket",question_key:"basket",title:"Qual tipo de cesta prefere?",subtitle:"Escolha o perfil de cesta que mais combina com o que procura.",options:[{value:"Básica",description:"Só o essencial para a despensa"},{value:"Econômica",description:"Mais itens com foco no orçamento"},{value:"Tradicional",description:"Equilíbrio entre quantidade e variedade"},{value:"Completa",description:"Nossa seleção mais robusta"}],multi:false,required:true,position:6,active:true}
  ];
- return {version:1,catalog_pricing_revision:1,products,baskets,quiz_questions,orders:[],processed_payment_events:[],next_order_number:1001,home_content:{...DEFAULT_HOME_CONTENT}};
+ return {version:1,catalog_pricing_revision:2,products,baskets,quiz_questions,orders:[],processed_payment_events:[],next_order_number:1001,home_content:{...DEFAULT_HOME_CONTENT}};
 }
 function storageFile(){return path.join(process.env.FORTI_STORAGE_DIR||path.join(process.cwd(),"data"),"forticestas.json");}
 const BLOB_STORE_PATH="data/forticestas.json";
