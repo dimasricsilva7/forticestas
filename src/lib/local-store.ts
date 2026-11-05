@@ -83,29 +83,34 @@ async function loadLocalStore():Promise<LocalStore>{
 }
 async function loadBlobSnapshot():Promise<{store:LocalStore;etag:string|null}>{
  if(!hasBlobCredentials())throw new Error("O Vercel Blob ainda não está conectado. Confira BLOB_READ_WRITE_TOKEN nas variáveis do projeto.");
- const result=await getBlob(BLOB_STORE_PATH,{access:"private",useCache:false});
- if(!result)return {store:initialStore(),etag:null};
- const json=await new Response(result.stream).text();
- const parsed=JSON.parse(json) as LocalStore;
- const needsMigration=parsed.catalog_pricing_revision!==2;
- const store=normalizeStore(parsed);
- let etag=result.blob.etag||null;
- if(needsMigration){
-  try{const saved=await saveBlobSnapshot(store,etag);etag=saved.etag;}
-  catch(error){if(isBlobConflict(error))return loadBlobSnapshot();throw error;}
+ for(let attempt=0;attempt<5;attempt++){
+  const result=await getBlob(BLOB_STORE_PATH,{access:"private",useCache:false,abortSignal:AbortSignal.timeout(15000)});
+  if(!result)return {store:initialStore(),etag:null};
+  if(result.statusCode!==200||!result.stream)throw new Error("O Vercel Blob não retornou o arquivo de dados da FortiCestas.");
+  const json=await new Response(result.stream).text();
+  const parsed=JSON.parse(json) as LocalStore;
+  const needsMigration=parsed.catalog_pricing_revision!==2;
+  const store=normalizeStore(parsed);
+  const etag=result.blob.etag||null;
+  if(needsMigration){
+   try{const saved=await saveBlobSnapshot(store,etag);return {store,etag:saved.etag};}
+   catch(error){if(isBlobConflict(error))continue;throw error;}
+  }
+  return {store,etag};
  }
- return {store,etag};
+ throw new Error("O catálogo foi alterado simultaneamente muitas vezes. Atualize a página e tente novamente.");
 }
 async function saveBlobSnapshot(store:LocalStore,etag:string|null){
+ const strongEtag=etag?.startsWith("W/")?etag.slice(2):etag;
  return putBlob(BLOB_STORE_PATH,JSON.stringify(store),{
   access:"private",
   addRandomSuffix:false,
-  allowOverwrite:Boolean(etag),
+  allowOverwrite:Boolean(strongEtag),
   contentType:"application/json",
   cacheControlMaxAge:60,
-  ...(etag?{ifMatch:etag}:{})
- });
-}
+  abortSignal:AbortSignal.timeout(15000),
+  ...(strongEtag?{ifMatch:strongEtag}:{})
+ });}
 let writeQueue:Promise<void>=Promise.resolve();
 async function persistLocalStore(store:LocalStore){
  const file=storageFile(),directory=path.dirname(file);await mkdir(directory,{recursive:true});
@@ -115,7 +120,10 @@ async function persistLocalStore(store:LocalStore){
 }
 function isBlobConflict(error:unknown){
  return error instanceof BlobPreconditionFailedError||
-  (error instanceof Error&&["BlobPreconditionFailedError","BlobAlreadyExistsError"].includes(error.name));
+  (error instanceof Error&&(
+   ["BlobPreconditionFailedError","BlobAlreadyExistsError"].includes(error.name)||
+   /Precondition failed: ETag mismatch/i.test(error.message)
+  ));
 }
 async function updateBlobStore<T>(mutator:(store:LocalStore)=>T|Promise<T>):Promise<T>{
  for(let attempt=0;attempt<6;attempt++){
