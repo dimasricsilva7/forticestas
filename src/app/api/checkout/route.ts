@@ -3,13 +3,14 @@ import {randomUUID} from "node:crypto";
 import {z} from "zod";
 import {createBravoPayPixCharge} from "@/lib/integrations/bravopay";
 import {readLocalStore,updateLocalStore,type LocalOrder} from "@/lib/local-store";
+import {isValidBrazilianPhone,normalizeBrazilianPhone} from "@/lib/phone";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 
 const schema=z.object({
  basketSlug:z.string().min(2).max(140),
- customer:z.object({name:z.string().trim().min(2).max(120),email:z.string().trim().email().max(180).optional().or(z.literal("")),phone:z.string().trim().min(10).max(30)}),
+ customer:z.object({name:z.string().trim().min(2).max(120),email:z.string().trim().email().max(180).optional().or(z.literal("")),phone:z.string().trim().max(30).transform(normalizeBrazilianPhone).refine(isValidBrazilianPhone,"Informe apenas um telefone brasileiro válido com DDD.")}),
  cep:z.string().transform((value)=>value.replace(/\D/g,"")).refine((value)=>/^\d{8}$/.test(value),"CEP inválido."),
  number:z.string().trim().min(1).max(30),complement:z.string().trim().max(120).optional().default("")
 });
